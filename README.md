@@ -39,6 +39,20 @@ Examples are in `gdl_problog/examples/` (`.gdliii`, prefix or infix syntax). Lin
 Scripts:
 
 ```
+python -m gdl_problog.play GAME [--auto first|random] [--seed N] [--query "PLAYER TERM"] [--choose-random]
+```
+
+`play` is the generic runner: `GAME` is a path to any `.gdliii` file or the name of an example, and the syntax (prefix or infix) is detected. Without `--auto` it prompts for moves (index, move text or `r` for random) and understands `:q PLAYER TERM`, `:undo [N]`, `:moves` and `:quit`. Queries use ProbLog syntax where capital letters are variables, e.g. `--query "ann isMuddy(X)"` is shown after every step. For example:
+
+```
+python -m gdl_problog.play generals --auto random --seed 3 --query "ga k2"
+python -m gdl_problog.play kuhn
+python -m gdl_problog.play path/to/new_game.gdliii --auto first
+```
+
+Older single-game demos:
+
+```
 python -m gdl_problog.monty
 python -m gdl_problog.muddy muddy3 110
 python -m gdl_problog.number_game
