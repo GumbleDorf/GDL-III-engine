@@ -3,6 +3,12 @@
 ; 2. Pete: Now I know the numbers.
 ; 3. Sam: Now I know them too.
 ; The dialogue is only possible for the pair 1 and 4.
+;@instructions SUM AND PRODUCT
+;@instructions Two numbers x and y with 1 <= x <= y <= 10 are chosen. Sam is told their sum; Pete is told their product.
+;@instructions Sam says: "I do not know the numbers, but I know that you do not know them either."
+;@instructions Pete says: "Now I know the numbers." Sam then says: "Now I know them too."
+;@instructions Follow the speakers' legal announcements and determine the chosen pair from the dialogue.
+
 (role sam)
 (role pete)
 (role random)

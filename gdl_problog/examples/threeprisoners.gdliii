@@ -2,6 +2,11 @@
 ; ann is prisoner pa. The warden (random) names a prisoner other than ann who is not pardoned.
 ; Ann learns nothing about her own fate (stays at 1/3), but the other unnamed prisoner rises to 2/3.
 ; Comments must not contain brackets as the parser reads everything inside brackets.
+;@instructions THE THREE PRISONERS
+;@instructions Exactly one of prisoners pa, pb, and pc is pardoned uniformly at random. Ann is pa.
+;@instructions The warden names either pb or pc, choosing someone who is not pardoned. Ann learns the name but not whether she herself is pardoned.
+;@instructions Compare Ann's probability of pardon with that of the unnamed prisoner. After the warden names someone, try :q ann pardoned(pa) and query the named and unnamed prisoners too.
+
 (role ann)
 (role random)
 

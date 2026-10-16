@@ -7,6 +7,19 @@
 ; Alice sees the claims but not the deal, and must decide whether the Knave is
 ; sane or mad. The four consistent deals all make the Knave sane.
 
+;@instructions WHO IS MAD?
+;@instructions Seven Spade-Gardeners and the Knave of Hearts are each either sane or mad.
+;@instructions A sane person believes a statement exactly when it is true. A mad person believes a statement exactly when it is false.
+;@instructions The Duchess reports these six claims:
+;@instructions   Three believes One is mad.
+;@instructions   Four believes Three and Two are not both mad.
+;@instructions   Five believes One and Four have the same sanity.
+;@instructions   Six believes One and Two are both sane.
+;@instructions   Seven believes Five is mad.
+;@instructions   The Knave believes Six and Seven are not both mad.
+;@instructions Alice cannot see the deal; determine the answer from the claims.
+;@instructions Assume all six claims are accurate. Which is the Knave: sane or mad?
+
 (role alice)
 (role random)
 

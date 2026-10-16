@@ -14,6 +14,12 @@
 ; solve. A character solves iff they know the guilty identity from their
 ; observations. The later reports are evaluated against each character's own
 ; accumulated observation history.
+;@instructions THE MOST BAFFLING CASE OF ALL
+;@instructions One of three defendants is guilty. A random setup assigns the names A, B, and C to the first, second, and third positions and chooses which positional statements are true.
+;@instructions The first and third defendants make claims about the first defendant; the second defendant makes a claim about the second. The reader does not learn the exact statements.
+;@instructions Follow the timed reports: Jabberwocky receives all statements; Tweedledee later receives the first statement; Tweedledum asks about the second or third statement and receives it; Humpty learns which position was asked about, but not the answer.
+;@instructions Each character reports whether they can identify the guilty defendant from what they know. Choose only actions legal for that character, then track the reader's accumulating observations.
+;@instructions Use :q reader guilty(X) to see which defendants remain possible after each report. The reader's goal is to know the guilty identity at the end.
 
 (role reader)
 (role random)

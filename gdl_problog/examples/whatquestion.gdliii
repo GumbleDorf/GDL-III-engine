@@ -7,6 +7,10 @@
 ; a red-card holder truthfully says yes, while a black-card holder lies and
 ; also says yes. Thus square identifies the prize holder and circle excludes
 ; him. The hasPrize question is included as a comparison query.
+;@instructions WHAT QUESTION SHOULD ALICE ASK?
+;@instructions One of two brothers has a prize. Each carries a red or black card: red means truthful, black means answers the opposite of the truth.
+;@instructions Alice chooses a brother and asks either whether his card is red or whether he has the prize. He answers with a square or circle; the symbol's yes/no meaning depends on whether he has the prize.
+;@instructions Use the question and symbol to identify which brother has the prize, then choose guess(first) or guess(second).
 
 (role alice)
 (role random)

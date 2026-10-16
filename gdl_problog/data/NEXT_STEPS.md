@@ -33,7 +33,7 @@ Status as of the last session: 74 fast tests pass, plus one `slow` test. The eng
 - Other players are modelled as uniformly random when weighting beliefs. Allow a configurable opponent model.
 
 **Repo**
-- Retire `monty.py`, `muddy.py` and `number_game.py` now that `play.py` covers them.
+- The game-specific `monty.py`, `muddy.py` and `number_game.py` runners have been retired; use `play.py` for interactive games.
 - The stale files in `data/` (`guessmodel.prob`, `model.prob`, `testmonty.prob`, `translated.prob`, `guessinfix.gdliii`) are kept on purpose for history. Only `problog_builtins.txt` and `predicates.problog` are used.
 
 ## Next games

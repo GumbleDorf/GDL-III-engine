@@ -9,6 +9,8 @@ or r for a random legal move. Commands start with a colon:
     :undo [N]        go back N steps
     :moves           show the legal moves again
     :quit
+
+Game files may include player-facing `;@instructions ...` comment lines; these are shown when the game loads.
 """
 import argparse
 import os
@@ -30,6 +32,18 @@ def resolve_game(game):
     if os.path.isfile(candidate):
         return candidate
     raise FileNotFoundError("No game file or example named {}".format(game))
+
+
+def read_instructions(path):
+    """Read player-facing instructions from `;@instructions` comment lines."""
+    marker = ';@instructions'
+    instructions = []
+    with open(path) as game_file:
+        for line in game_file:
+            stripped = line.lstrip()
+            if stripped.startswith(marker):
+                instructions.append(stripped[len(marker):].strip())
+    return instructions
 
 
 def detect_format(path):
@@ -91,8 +105,10 @@ def pick(mod, player, text):
     return None
 
 
-def show_moves(mod, out):
+def show_moves(mod, out, include_random=False):
     for player, legal in mod.get_legal_moves().items():
+        if player == RANDOM_ROLE and not include_random:
+            continue
         out("  {}: {}".format(player, ", ".join("[{}] {}".format(i, m) for i, m in enumerate(legal))))
 
 
@@ -125,7 +141,7 @@ def play_interactive(mod, queries, choose_random, read, out):
             out("Use :undo to go back or :quit.")
         else:
             out("Step {}. Legal moves:".format(steps))
-            show_moves(mod, out)
+            show_moves(mod, out, include_random=choose_random)
         chosen = {}
         done = False
         while not done:
@@ -150,7 +166,7 @@ def play_interactive(mod, queries, choose_random, read, out):
                         chosen = {}
                         done = True
                     elif cmd == 'moves':
-                        show_moves(mod, out)
+                        show_moves(mod, out, include_random=choose_random)
                     else:
                         out("Unknown command :{}".format(cmd))
                 except Exception as e:
@@ -198,6 +214,12 @@ def main(argv=None, read=None, out=print):
     mod = GDLIIIEngine(path, fmt, seed=args.seed)
     queries = [parse_query(q) for q in args.query]
     out("Loaded {} ({}), roles: {}".format(os.path.basename(path), fmt.name.lower(), ", ".join(mod.player_names)))
+    instructions = read_instructions(path)
+    if instructions:
+        out("")
+        for line in instructions:
+            out(line)
+        out("")
     if args.auto:
         play_auto(mod, args.auto, queries, out, args.max_steps)
     else:

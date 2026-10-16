@@ -53,7 +53,7 @@ Both parsers implement this project's supported GDL-III subset; neither is a gen
 
 The command-line runner guesses the format from the file's opening syntax. If a file is ambiguous, set it explicitly with `--format prefix` or `--format infix`; the Python API takes `File_Format.PREFIX` or `File_Format.INFIX`.
 
-Examples are in `gdl_problog/examples/` (`.gdliii`, prefix or infix syntax). Lines starting with `;` are comments.
+Examples are in `gdl_problog/examples/` (`.gdliii`, prefix or infix syntax). Lines starting with `;` are comments. In interactive play, `;@instructions ...` comment lines are shown to the player when the game loads.
 
 | Game | Roles | What it demonstrates |
 |---|---|---|
@@ -85,12 +85,9 @@ python -m gdl_problog.play kuhn
 python -m gdl_problog.play path/to/new_game.gdliii --auto first
 ```
 
-Older single-game demos:
+Benchmark utility:
 
 ```
-python -m gdl_problog.monty
-python -m gdl_problog.muddy muddy3 110
-python -m gdl_problog.number_game
 python -m gdl_problog.benchmark [game ...]   # load/play/query timings
 ```
 

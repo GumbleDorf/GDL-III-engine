@@ -1,3 +1,7 @@
+;@instructions MONTY HALL
+;@instructions A car is hidden behind one of three doors. Choose a door; the host knows where the car is and opens an unchosen door showing a goat.
+;@instructions After the reveal, choose whether to stay with your door or switch to the other closed door. Try both strategies across runs.
+
 role(candidate). 
 role(random).
 

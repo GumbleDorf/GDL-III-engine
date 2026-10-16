@@ -1,3 +1,8 @@
+;@instructions BINARY SEARCH
+;@instructions A hidden integer from 1 to 32 is selected. Ask whether it is less than a threshold n using ask_if_less(n).
+;@instructions A yes observation means the number is below n; no yes observation means it is at least n. Use the answers to narrow the range and identify the number.
+;@instructions The game ends when the player knows the number or after 12 questions.
+
 (role player) (role random)
 
 (number 1) ... (number 32)

@@ -1,6 +1,13 @@
 ; Classic Sum and Product: two numbers 2 <= x < y with x + y <= 100. Sam is told the sum, Pete the product.
 ; Same dialogue as sumproduct.gdliii, only the pair x = 4, y = 13 supports it.
 ; This file is generated, it has 2352 possible worlds and takes about 16 seconds to start.
+;@instructions SUM AND PRODUCT (RANGE 2 TO 100)
+;@instructions Two integers satisfy 2 <= x < y and x + y <= 100. Sam is told their sum; Pete is told their product.
+;@instructions Sam says: "I do not know the numbers, but I know that you do not know them either."
+;@instructions Pete says: "Now I know the numbers." Sam then says: "Now I know them too."
+;@instructions Follow the speakers' legal announcements and determine the chosen pair from the dialogue.
+;@instructions This larger example can take around 16 seconds to load because it has 2,352 possible worlds.
+
 (role sam)
 (role pete)
 (role random)

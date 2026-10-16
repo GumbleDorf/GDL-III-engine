@@ -1,3 +1,8 @@
+;@instructions MUDDY CHILDREN (TWO CHILDREN)
+;@instructions Ann and Bob can see mud on the other's forehead, but not their own. The group is told that at least one child is muddy.
+;@instructions In each public round, each child says yes if they know they are muddy, otherwise no. Use the sequence of answers to determine who is muddy.
+;@instructions Query a child's belief with :q ann isMuddy(ann) or :q bob isMuddy(bob).
+
 (role ann) 
 (role bob)  
 (role random)

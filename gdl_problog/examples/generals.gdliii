@@ -3,6 +3,11 @@
 ; A general only sends message k after receiving message k minus 1, and random delivers or drops every message.
 ; k1 to k4 are the nested knowledge levels: k1 is gb knows attack, k2 is ga knows k1, and so on.
 ; ck is common knowledge of the plan and is never reached over the unreliable channel.
+;@instructions THE TWO GENERALS
+;@instructions A random setup chooses attack or hold. Only general ga learns the plan.
+;@instructions The generals send four acknowledgements in turn. Each message may be delivered or dropped; a general can send only after receiving the previous message.
+;@instructions Follow the nested knowledge predicates k1 through k4 with queries such as :q gb k1. Even four acknowledgements do not make the plan common knowledge (ck).
+
 (role ga)
 (role gb)
 (role random)

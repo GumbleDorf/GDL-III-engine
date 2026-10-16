@@ -4,6 +4,12 @@
 ; four possible Alice lines, so she cannot identify any one of Alice's cards.
 ; The random role deals uniformly over the 140 deals; Alice chooses among
 ; the six Fano planes containing her hand.
+;@instructions THE RUSSIAN CARDS PROBLEM
+;@instructions Seven cards are dealt: Alice and Bob each receive three, and Eve receives the remaining card.
+;@instructions Alice publicly announces one of seven Fano planes containing her hand. Each plane is a collection of seven three-card lines.
+;@instructions After the announcement, Bob should be able to identify Alice's exact hand, while Eve should still be unable to identify any one of Alice's cards.
+;@instructions Alice chooses the announcement. The other players' knowledge can be inspected with :q bob aliceHand(A,B,C) and :q eve aliceHand(A,B,C).
+
 
 (role alice)
 (role bob)

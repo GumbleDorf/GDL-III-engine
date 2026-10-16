@@ -1,3 +1,8 @@
+;@instructions CHERYL'S BIRTHDAY
+;@instructions Cheryl chooses one of the listed dates. Albert learns its month; Bernard learns its day.
+;@instructions They speak in order: Albert says he does not know the date but knows Bernard does not know it; Bernard then says he knows; Albert then says he knows too.
+;@instructions Select only statements legal for the speaker at each turn. The remaining date is the solution.
+
 (role albert) (role bernard) (role cheryl)
 (date may 15) (date may 16) (date may 19)
 (date jun 17) (date jun 18) (date jul 14) (date jul 16)

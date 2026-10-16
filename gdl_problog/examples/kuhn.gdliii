@@ -2,6 +2,11 @@
 ; p1 checks or bets, p2 responds, and if p2 bets after a check p1 may fold or call.
 ; Goals encode the net chips won: 50 plus 25 per chip, so 0, 25, 75 or 100.
 ; The opponent is modelled as uniformly random over its legal moves when computing beliefs.
+;@instructions KUHN POKER
+;@instructions Two players each receive one private card from j, q, k, and ante one chip. The higher card wins at showdown.
+;@instructions p1 acts first and may check or bet. p2 responds; after a check-bet sequence p1 may fold or call. A fold ends the hand; otherwise cards are shown.
+;@instructions Choose each active player's move. Use :q p1 hand(p1,C) or :q p2 hand(p2,C) to inspect a player's belief about their card.
+
 (role p1)
 (role p2)
 (role random)
