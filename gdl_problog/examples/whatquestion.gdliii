@@ -1,0 +1,112 @@
+; Alice's sign-language puzzle from "Tweedledum or Tweedledee?"
+;
+; Alice chooses one brother and a yes/no question from a small finite set.
+; A red card makes its carrier truthful; a black card makes its carrier lie.
+; The answer symbol's meaning depends on whether the chosen brother has the
+; prize. The key query, cardIsRed, makes the spoken answer "yes" either way:
+; a red-card holder truthfully says yes, while a black-card holder lies and
+; also says yes. Thus square identifies the prize holder and circle excludes
+; him. The hasPrize question is included as a comparison query.
+
+(role alice)
+(role random)
+
+(person first)
+(person second)
+(color red)
+(color black)
+(question cardIsRed)
+(question hasPrize)
+(symbol square)
+(symbol circle)
+
+(init (phase deal))
+
+; The random player deals one prize and one red/black card to each brother.
+(<= (legal random (deal first ?firstColor ?secondColor))
+    (true (phase deal))
+    (color ?firstColor)
+    (color ?secondColor))
+(<= (legal random (deal second ?firstColor ?secondColor))
+    (true (phase deal))
+    (color ?firstColor)
+    (color ?secondColor))
+(<= (legal random noop) (not (true (phase deal))))
+
+; Alice asks one brother one of the two candidate yes/no questions.
+(<= (legal alice noop)
+    (or (true (phase deal)) (true (phase respond))))
+(<= (legal alice (ask ?person ?question))
+    (true (phase ask))
+    (person ?person)
+    (question ?question))
+(<= (legal alice (guess ?person))
+    (true (phase guess))
+    (person ?person))
+
+(<= (next (phase ask)) (true (phase deal)))
+(<= (next (phase respond)) (true (phase ask)))
+(<= (next (phase guess)) (true (phase respond)))
+(<= (next (phase finish)) (true (phase guess)))
+(<= (terminal) (true (phase finish)))
+
+(<= (next (holder ?who))
+    (does random (deal ?who ?firstColor ?secondColor)))
+(<= (next (holder ?who)) (true (holder ?who)))
+(<= (next (card first ?color))
+    (does random (deal ?holder ?color ?otherColor)))
+(<= (next (card second ?color))
+    (does random (deal ?holder ?otherColor ?color)))
+(<= (next (card ?who ?color)) (true (card ?who ?color)))
+(<= (next (asked ?who ?question))
+    (does alice (ask ?who ?question)))
+(<= (next (asked ?who ?question))
+    (true (asked ?who ?question)))
+(<= (next (guess ?who)) (does alice (guess ?who)))
+
+(<= (hasPrize ?who) (true (holder ?who)))
+(<= (cardIsRed first) (true (card first red)))
+(<= (cardIsRed second) (true (card second red)))
+(<= (truthful ?who) (true (card ?who red)))
+(<= (lying ?who) (true (card ?who black)))
+
+; Evaluate the proposition Alice asked about.
+(<= (questionTrue ?who cardIsRed) (cardIsRed ?who))
+(<= (questionTrue ?who hasPrize) (hasPrize ?who))
+
+; Red-card holders answer truthfully; black-card holders give the opposite.
+(<= (answer yes ?who)
+    (true (asked ?who ?question))
+    (truthful ?who)
+    (questionTrue ?who ?question))
+(<= (answer yes ?who)
+    (true (asked ?who ?question))
+    (lying ?who)
+    (not (questionTrue ?who ?question)))
+(<= (answer no ?who)
+    (true (asked ?who ?question))
+    (truthful ?who)
+    (not (questionTrue ?who ?question)))
+(<= (answer no ?who)
+    (true (asked ?who ?question))
+    (lying ?who)
+    (questionTrue ?who ?question))
+
+; For the prize holder, square means yes; for the other brother, square
+; means no. Circle has the opposite meaning.
+(<= (response square) (answer yes ?who) (hasPrize ?who))
+(<= (response square) (answer no ?who) (not (hasPrize ?who)))
+(<= (response circle) (answer no ?who) (hasPrize ?who))
+(<= (response circle) (answer yes ?who) (not (hasPrize ?who)))
+
+; Alice knows which question she asked and observes only the resulting symbol.
+(<= (sees alice (asked ?who ?question))
+    (does alice (ask ?who ?question)))
+(<= (sees alice (sign ?symbol))
+    (true (phase respond))
+    (true (asked ?who ?question))
+    (response ?symbol))
+
+(<= (goal alice 100) (true (guess ?who)) (hasPrize ?who))
+(<= (goal alice 0) (true (guess ?who)) (not (hasPrize ?who)))
+(goal random 0)

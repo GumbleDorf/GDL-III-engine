@@ -1,0 +1,149 @@
+; The Knave of Hearts and the seven Spade-Gardeners from "Who Is Mad?"
+;
+; The random player deals a sanity assignment satisfying all six reported
+; belief claims. A sane character believes a proposition exactly when it is
+; true; a mad character believes it exactly when it is false. These are
+; ordinary predicates over this finite puzzle, not the factive knows operator.
+; Alice sees the claims but not the deal, and must decide whether the Knave is
+; sane or mad. The four consistent deals all make the Knave sane.
+
+(role alice)
+(role random)
+
+(character one)
+(character two)
+(character three)
+(character four)
+(character five)
+(character six)
+(character seven)
+(character knave)
+(status sane)
+(status mad)
+
+(truthValue true)
+(truthValue false)
+
+(init (phase deal))
+
+; Truth tables for atomic claims about sanity and combinations of sanities.
+(madnessTruth mad true)
+(madnessTruth sane false)
+(notBothMad mad mad false)
+(notBothMad mad sane true)
+(notBothMad sane mad true)
+(notBothMad sane sane true)
+(sameSanity mad mad true)
+(sameSanity mad sane false)
+(sameSanity sane mad false)
+(sameSanity sane sane true)
+(bothSane mad mad false)
+(bothSane mad sane false)
+(bothSane sane mad false)
+(bothSane sane sane true)
+
+; A sane agent's belief matches the proposition; a mad agent's belief reverses it.
+(beliefValue sane true true)
+(beliefValue sane false false)
+(beliefValue mad true false)
+(beliefValue mad false true)
+
+; Three believes One is mad.
+(<= (claimThree ?one ?three)
+    (madnessTruth ?one ?truth)
+    (beliefValue ?three ?truth true))
+
+; Four believes Three and Two are not both mad.
+(<= (claimFour ?two ?three ?four)
+    (notBothMad ?three ?two ?truth)
+    (beliefValue ?four ?truth true))
+
+; Five believes One and Four have the same sanity.
+(<= (claimFive ?one ?four ?five)
+    (sameSanity ?one ?four ?truth)
+    (beliefValue ?five ?truth true))
+
+; Six believes One and Two are both sane.
+(<= (claimSix ?one ?two ?six)
+    (bothSane ?one ?two ?truth)
+    (beliefValue ?six ?truth true))
+
+; Seven believes Five is mad.
+(<= (claimSeven ?five ?seven)
+    (madnessTruth ?five ?truth)
+    (beliefValue ?seven ?truth true))
+
+; The Knave believes Six and Seven are not both mad.
+(<= (claimKnave ?six ?seven ?knave)
+    (notBothMad ?six ?seven ?truth)
+    (beliefValue ?knave ?truth true))
+
+; A possible deal must make every claim in the Duchess's account accurate.
+(<= (consistent ?one ?two ?three ?four ?five ?six ?seven ?knave)
+    (claimThree ?one ?three)
+    (claimFour ?two ?three ?four)
+    (claimFive ?one ?four ?five)
+    (claimSix ?one ?two ?six)
+    (claimSeven ?five ?seven)
+    (claimKnave ?six ?seven ?knave))
+
+(<= (legal random (deal ?one ?two ?three ?four ?five ?six ?seven ?knave))
+    (true (phase deal))
+    (status ?one)
+    (status ?two)
+    (status ?three)
+    (status ?four)
+    (status ?five)
+    (status ?six)
+    (status ?seven)
+    (status ?knave)
+    (consistent ?one ?two ?three ?four ?five ?six ?seven ?knave))
+(<= (legal random noop) (not (true (phase deal))))
+
+(<= (legal alice noop) (true (phase deal)))
+(<= (legal alice (guess ?status))
+    (true (phase solve))
+    (status ?status))
+
+(<= (next (phase solve)) (true (phase deal)))
+(<= (next (phase finish)) (true (phase solve)))
+(<= (terminal) (true (phase finish)))
+
+(<= (next (sanity one ?status))
+    (does random (deal ?status ?two ?three ?four ?five ?six ?seven ?knave)))
+(<= (next (sanity two ?status))
+    (does random (deal ?one ?status ?three ?four ?five ?six ?seven ?knave)))
+(<= (next (sanity three ?status))
+    (does random (deal ?one ?two ?status ?four ?five ?six ?seven ?knave)))
+(<= (next (sanity four ?status))
+    (does random (deal ?one ?two ?three ?status ?five ?six ?seven ?knave)))
+(<= (next (sanity five ?status))
+    (does random (deal ?one ?two ?three ?four ?status ?six ?seven ?knave)))
+(<= (next (sanity six ?status))
+    (does random (deal ?one ?two ?three ?four ?five ?status ?seven ?knave)))
+(<= (next (sanity seven ?status))
+    (does random (deal ?one ?two ?three ?four ?five ?six ?status ?knave)))
+(<= (next (sanity knave ?status))
+    (does random (deal ?one ?two ?three ?four ?five ?six ?seven ?status)))
+(<= (next (sanity ?who ?status)) (true (sanity ?who ?status)))
+(<= (next (guess ?status)) (does alice (guess ?status)))
+(<= (next (guess ?status)) (true (guess ?status)))
+
+; The clue packet is public; the random sanity assignment remains hidden.
+(<= (sees alice (clues knaveOfHearts))
+    (true (phase deal))
+    (does random (deal ?one ?two ?three ?four ?five ?six ?seven ?knave)))
+
+(<= (goal alice 100)
+    (true (guess sane))
+    (true (sanity knave sane)))
+(<= (goal alice 100)
+    (true (guess mad))
+    (true (sanity knave mad)))
+(<= (goal alice 0)
+    (true (guess sane))
+    (true (sanity knave mad)))
+(<= (goal alice 0)
+    (true (guess mad))
+    (true (sanity knave sane)))
+(goal random 0)

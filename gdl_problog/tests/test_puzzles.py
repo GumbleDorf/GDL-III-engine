@@ -29,6 +29,12 @@ def goal(mod, player):
     return int(str(result[0][1].args[1]))
 
 
+def probability(mod, player, query):
+    result = mod.query(player, query)
+    assert len(result) == 1
+    return result[0][0]
+
+
 # Three prisoners
 
 def play_prisoners(pardoned, named):
@@ -153,6 +159,125 @@ def test_sumproduct_dialogue_breaks_for_other_pairs():
     step(mod)
     # Pete holds product 6 which is ambiguous even after Sam's statement
     assert mod.get_legal_moves('pete') == []
+
+
+@pytest.mark.parametrize(
+    'first,second,third',
+    [('a', 'b', 'c'), ('b', 'c', 'a'), ('c', 'a', 'b')],
+    ids=['abc', 'bca', 'cab'],
+)
+@pytest.mark.parametrize('second_claim', ['innocent', 'guilty'])
+def test_mostbaffling_solves_all_clue_consistent_randomizations(first, second, third, second_claim):
+    mod = load('mostbaffling')
+    choose = Term(
+        'choose', Term('first'), Term('innocent'), Term(second_claim), Term('innocent'),
+        Term(first), Term(second), Term(third),
+    )
+
+    # The full dialogue admits statement Cases 1 and 3; each is tested under
+    # all three public identity rotations.
+    step(mod, random=choose)
+    assert beliefs(mod, 'reader', Term('guilty', Var('P'))) == pytest.approx({
+        'guilty(a)': 1 / 3, 'guilty(b)': 1 / 3, 'guilty(c)': 1 / 3,
+    })
+
+    # Jabberwocky's full information narrows the culprit to the first/second positions.
+    step(mod)
+    assert beliefs(mod, 'reader', Term('guilty', Var('P'))) == pytest.approx({
+        f'guilty({first})': 0.5, f'guilty({second})': 0.5,
+    })
+
+    # Tweedledee gets the first statement privately; Alice learns only that he got it.
+    step(mod)
+    assert beliefs(mod, 'reader', Term('guilty', Var('P'))) == pytest.approx({
+        f'guilty({first})': 0.5, f'guilty({second})': 0.5,
+    })
+
+    # His inability to solve after that clue removes the first-claim-guilty case.
+    step(mod)
+    assert beliefs(mod, 'reader', Term('guilty', Var('P'))) == pytest.approx({
+        f'guilty({first})': 2 / 3, f'guilty({second})': 1 / 3,
+    })
+
+    # Tweedledum asks about the third position. His private answer is hidden from Alice.
+    step(mod, tweedledum=Term('ask', Term('third')))
+    step(mod)
+    step(mod)
+    assert beliefs(mod, 'reader', Term('guilty', Var('P'))) == pytest.approx({
+        f'guilty({first})': 3 / 4, f'guilty({second})': 1 / 4,
+    })
+
+    # Humpty needs the question identity, then his solve report identifies the first.
+    step(mod)
+    assert beliefs(mod, 'reader', Term('guilty', Var('P'))) == pytest.approx({
+        f'guilty({first})': 3 / 4, f'guilty({second})': 1 / 4,
+    })
+    step(mod)
+    assert mod.is_terminal()
+    assert beliefs(mod, 'reader', Term('guilty', Var('P'))) == {
+        f'guilty({first})': pytest.approx(1.0),
+    }
+
+
+# Who Is Mad?
+
+WHOISMAD_CHARACTERS = ('one', 'two', 'three', 'four', 'five', 'six', 'seven', 'knave')
+WHOISMAD_CONFIGURATIONS = [
+    ('sane', 'sane', 'mad', 'sane', 'sane', 'sane', 'mad', 'sane'),
+    ('sane', 'mad', 'mad', 'mad', 'mad', 'mad', 'sane', 'sane'),
+    ('mad', 'sane', 'sane', 'sane', 'mad', 'mad', 'sane', 'sane'),
+    ('mad', 'mad', 'sane', 'sane', 'mad', 'mad', 'sane', 'sane'),
+]
+
+
+def whoismad_deal(statuses):
+    return Term('deal', *(Term(status) for status in statuses))
+
+
+def test_whoismad_only_the_four_consistent_deals_are_legal():
+    mod = load('whoismad')
+    all_deals = {
+        str(whoismad_deal(statuses))
+        for statuses in product(('sane', 'mad'), repeat=len(WHOISMAD_CHARACTERS))
+    }
+    expected = {str(whoismad_deal(statuses)) for statuses in WHOISMAD_CONFIGURATIONS}
+    legal = {str(move) for move in mod.get_legal_moves('random')}
+
+    assert len(all_deals) == 2 ** len(WHOISMAD_CHARACTERS)
+    assert legal == expected
+
+
+@pytest.mark.parametrize('statuses', WHOISMAD_CONFIGURATIONS)
+def test_whoismad_each_consistent_deal_allows_sane_knave_guess(statuses):
+    mod = load('whoismad')
+    deal = whoismad_deal(statuses)
+    assert deal in mod.get_legal_moves('random')
+
+    step(mod, random=deal)
+    # Alice sees the same six claims in every deal and can identify the Knave as sane.
+    assert probability(mod, 'alice', Term('sanity', Term('knave'), Term('sane'))) == pytest.approx(1.0)
+    assert probability(mod, 'alice', Term('sanity', Term('knave'), Term('mad'))) == pytest.approx(0.0)
+    step(mod, alice=Term('guess', Term('sane')))
+    assert mod.is_terminal()
+    assert goal(mod, 'alice') == 100
+
+
+def test_whoismad_alice_posterior_matches_all_four_consistent_deals():
+    mod = load('whoismad')
+    step(mod, random=whoismad_deal(WHOISMAD_CONFIGURATIONS[0]))
+
+    mad_probability = {
+        'one': 0.5,
+        'two': 0.5,
+        'three': 0.5,
+        'four': 0.25,
+        'five': 0.75,
+        'six': 0.75,
+        'seven': 0.25,
+        'knave': 0.0,
+    }
+    for person, expected in mad_probability.items():
+        assert probability(mod, 'alice', Term('sanity', Term(person), Term('mad'))) == pytest.approx(expected)
 
 
 @pytest.mark.slow
