@@ -219,6 +219,37 @@ def test_mostbaffling_solves_all_clue_consistent_randomizations(first, second, t
     }
 
 
+# Russian Cards Problem
+
+
+def test_russian_cards_fano_announcement_is_informative_and_safe():
+    mod = load('russiancards')
+    assert len(mod.get_legal_moves('random')) == 140
+
+    # Alice holds c1-c3, Bob c4-c6, and Eve c7. Alice may announce any of the
+    # six Fano planes containing her hand; all six must decode safely.
+    deal = Term('deal', *(Term(f'c{i}') for i in (1, 2, 3, 4, 5, 6, 7)))
+    step(mod, random=deal)
+    announcements = mod.get_legal_moves('alice')
+    assert len(announcements) == 6
+
+    for announcement in announcements:
+        step(mod, alice=announcement)
+
+        # Bob's hand and the public Fano plane identify Alice's unique line.
+        assert beliefs(
+            mod, 'bob', Term('aliceHand', Var('A'), Var('B'), Var('C'))
+        ) == pytest.approx({'aliceHand(c1,c2,c3)': 1.0})
+
+        # Given her own c7 and the announcement, Eve considers four Alice
+        # hands. Each of c1-c6 occurs in two of those hands, so no card is
+        # certain; the posterior for each card is exactly one half.
+        assert beliefs(mod, 'eve', Term('aliceHas', Var('Card'))) == pytest.approx({
+            f'aliceHas(c{i})': 0.5 for i in range(1, 7)
+        })
+
+        mod.undo_step()
+
 # Who Is Mad?
 
 WHOISMAD_CHARACTERS = ('one', 'two', 'three', 'four', 'five', 'six', 'seven', 'knave')
