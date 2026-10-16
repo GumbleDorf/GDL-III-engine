@@ -4,7 +4,7 @@ from problog.engine import DefaultEngine, ClauseDB
 from copy import deepcopy
 from enum import Enum, auto
 from io import StringIO
-from internal.utility import NestedView
+from .utility import NestedView
 import re
 
 
@@ -288,7 +288,15 @@ class GDLIIIParser(object):
             File_Format.INFIX: lambda a: self._process_program_infix(a),
             File_Format.PREFIX: lambda a: self._process_program_prefix(a)
         }[file_format]
-        program = "".join(open(program_file).readlines()).replace("\n","")
+        with open(program_file) as f:
+            program = "".join(f.readlines()).replace("\n","")
+        depth = 0
+        for c in program:
+            depth += (c == "(") - (c == ")")
+            if depth < 0:
+                break
+        if depth != 0:
+            raise ValueError("Unmatched parentheses in {}".format(program_file))
         gdl_spec = process_func(program)
         gdl_spec._finalise_model(self._existing_builtins, self._populate_predefined_preds())
         return gdl_spec

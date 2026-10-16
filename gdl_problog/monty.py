@@ -1,19 +1,18 @@
-from GDLIIIEngine import GDLIIIEngine
-from internal.GDLIIIParser import File_Format
-from problog.logic import Term, Constant,Var, Clause
-from random import choice
+import os
+from . import GDLIIIEngine, File_Format, EXAMPLES_DIR
+from problog.logic import Term, Constant, Var
 
 # We can figure this out from the GDLEngine too
 PLAYER_NAME = 'candidate'
 
-def main():
-    mod = GDLIIIEngine('./examples/montyhall.gdliii', File_Format.INFIX)
+def main(seed=None):
+    mod = GDLIIIEngine(os.path.join(EXAMPLES_DIR, 'montyhall.gdliii'), File_Format.INFIX, seed=seed)
     res = {}
     for i in range(0,1000):
         print(f"Game {i}")
         #Random initial door choice to begin with
         moves1 = mod.get_legal_moves()[PLAYER_NAME]
-        mod.set_actions({PLAYER_NAME: choice(moves1)})
+        mod.set_actions({PLAYER_NAME: mod.rng.choice(moves1)})
         mod.update_step()
         #Second step, can only choose noop
         mod.set_actions({PLAYER_NAME: mod.get_legal_moves()[PLAYER_NAME][0]})

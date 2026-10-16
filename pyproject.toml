@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "gdl_problog"
+version = "0.1.0"
+description = "GDL-III (Thielscher & Schiffel, IJCAI-17) on ProbLog"
+requires-python = ">=3.8"
+dependencies = ["problog==2.3.0"]
+
+[project.optional-dependencies]
+dev = ["pytest"]
+
+[tool.setuptools]
+packages = ["gdl_problog", "gdl_problog.internal"]
+
+[tool.setuptools.package-data]
+gdl_problog = ["data/*", "examples/*"]

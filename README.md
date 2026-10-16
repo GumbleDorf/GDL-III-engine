@@ -4,22 +4,29 @@ Implementation of GDL-III epistemic game descriptions. Game rules are evaluated 
 
 ## Setup and tests
 
+Run everything from the repository root.
+
 ```
-pip install -r gdl_problog/requirements.txt pytest
-cd gdl_problog
+pip install -e .[dev]     # or: pip install -r requirements.txt
 python -m pytest
 ```
 
 ## Usage
 
-Run from `gdl_problog/` (modules import `internal.*` relative to it):
-
 ```python
-from GDLIIIEngine import GDLIIIEngine
-from internal.GDLIIIParser import File_Format
+from gdl_problog import GDLIIIEngine, File_Format, EXAMPLES_DIR
 
-g = GDLIIIEngine('./examples/montyhall.gdliii', File_Format.INFIX)
+g = GDLIIIEngine(EXAMPLES_DIR + '/montyhall.gdliii', File_Format.INFIX, seed=1)
 g.get_legal_moves(); g.set_actions({...}); g.update_step(); g.query('candidate', term)
 ```
 
-Examples are in `gdl_problog/examples/` (`.gdliii`, prefix or infix syntax); demo scripts: `monty.py`, `muddy.py`, `number_game.py`.
+`seed` fixes the random player's moves; `g.rng` is the same generator, for callers that need reproducible choices.
+
+Examples are in `gdl_problog/examples/` (`.gdliii`, prefix or infix syntax). Scripts:
+
+```
+python -m gdl_problog.monty
+python -m gdl_problog.muddy muddy3 110
+python -m gdl_problog.number_game
+python -m gdl_problog.benchmark [game ...]   # load/play/query timings
+```

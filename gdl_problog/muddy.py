@@ -1,17 +1,16 @@
+import os
 import sys
-from GDLIIIEngine import GDLIIIEngine
-from internal.GDLIIIParser import File_Format
-from problog.logic import Term, Constant,Var, Clause
-from random import choice
+from . import GDLIIIEngine, File_Format, EXAMPLES_DIR
+from problog.logic import Term, Constant
 
-# Usage: python muddy.py [muddy2|muddy3] [pattern], where pattern is e.g. 110 (1 = muddy, in role order)
-def main(example='muddy', pattern=None):
-    mod = GDLIIIEngine(f'./examples/{example}.gdliii', File_Format.PREFIX)
+# Usage: python -m gdl_problog.muddy [muddy|muddy3|muddy4] [pattern], where pattern is e.g. 110 (1 = muddy, in role order)
+def main(example='muddy', pattern=None, seed=None):
+    mod = GDLIIIEngine(os.path.join(EXAMPLES_DIR, f'{example}.gdliii'), File_Format.PREFIX, seed=seed)
     children = [p for p in mod.player_names if p != 'random']
     step = 0
     while not mod.is_terminal():
         moves = mod.get_legal_moves()
-        rmove = choice(moves['random'])
+        rmove = mod.rng.choice(moves['random'])
         if pattern is not None and step == 0:
             rmove = Term('muddy', *[Constant(int(c)) for c in pattern])
         #Children only ever have a single legal move (noop or one of say yes/say no)

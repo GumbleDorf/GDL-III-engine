@@ -1,13 +1,12 @@
-from GDLIIIEngine import GDLIIIEngine
-from internal.GDLIIIParser import File_Format
-from problog.logic import Term, Constant,Var, Clause
-from random import choice
+import os
+from . import GDLIIIEngine, File_Format, EXAMPLES_DIR
+from problog.logic import Term, Var
 
 # We can figure this out from the GDLEngine too
 PLAYER_NAME = 'player'
 
 def main():
-    mod = GDLIIIEngine('./examples/guess.gdliii', File_Format.PREFIX)
+    mod = GDLIIIEngine(os.path.join(EXAMPLES_DIR, 'guess.gdliii'), File_Format.PREFIX)
     res = {}
     for i in range(1,11):
         res[i] = 0

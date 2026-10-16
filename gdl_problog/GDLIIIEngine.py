@@ -1,10 +1,12 @@
-from internal.GDLIIIProblogRep import GDLIIIProblogRep
-from internal.GDLIIIParser import File_Format
+from .internal.GDLIIIProblogRep import GDLIIIProblogRep
+from .internal.GDLIIIParser import File_Format
 from problog.logic import Term, Constant,Var, Clause
-from random import choice
+from random import Random
 
 class GDLIIIEngine(object):
-    def __init__(self, file_name, fformat):
+    #seed makes the random player's moves reproducible; self.rng can also be used by callers for their own choices
+    def __init__(self, file_name, fformat, seed=None):
+        self.rng = Random(seed)
         self._cur_step = 0
         self._gdl_rep = GDLIIIProblogRep(file_name, fformat)
         self._player_map = self._gdl_rep._model.player_map
@@ -52,27 +54,9 @@ class GDLIIIEngine(object):
             raise Exception("Cannot continue to next step, current state is terminal")
         random_id = self._gdl_rep._randomIdentifier
         if random_id in self._gdl_rep.getMoveList() and self._gdl_rep.getMoveList()[random_id] is None:
-            self._gdl_rep.submitAction(choice(tuple(self._gdl_rep.getLegalMovesForPlayer(random_id))), random_id)
+            self._gdl_rep.submitAction(self.rng.choice(tuple(self._gdl_rep.getLegalMovesForPlayer(random_id))), random_id)
         self._gdl_rep.applyActionsToModelAndUpdate()
         self._cur_step +=1
 
     def is_terminal(self):
         return self._gdl_rep.terminal
-
-
-if __name__ == "__main__":
-    mod = GDLIIIEngine('./examples/montyhall.gdliii', File_Format.INFIX)
-    print(mod.player_names)
-    print(mod.get_legal_moves())
-    mod.set_actions({'candidate': mod.get_legal_moves('candidate')[0]})
-    mod.update_step()
-    print(mod.get_legal_moves())
-    mod.set_actions({'candidate': mod.get_legal_moves('candidate')[0]})
-    mod.update_step()
-    print(mod.is_terminal())
-    print(mod.query('candidate', Term('car', Var("_")), 0))
-    print(mod.query('candidate', Term('car', Var("_")), 1))
-    mod.set_actions({'candidate': mod.get_legal_moves('candidate')[0]})
-    mod.update_step()
-    print(mod.is_terminal())
-    print(mod.query('candidate', Term('car', Var("_"))))

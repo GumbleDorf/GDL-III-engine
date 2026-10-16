@@ -3,7 +3,7 @@ from itertools import product
 from problog.program import PrologString
 from problog.engine import DefaultEngine, UnknownClause
 from problog.logic import Term, Constant, Var
-from internal.GDLIIIParser import GDLIIIParser, File_Format
+from .GDLIIIParser import GDLIIIParser, File_Format
 
 #Marker used to declare predicates that may have no clauses in a game description. Anything derived from it is discarded.
 DUMMY = "epi_dummy"
@@ -63,6 +63,8 @@ class GDLIIIProblogRep(object):
         self._playerList = []
         roleTerms = self._ask(self._base, Term('role', Var('R')))
         self._roles = sorted(set(self._role_id(t.args[0]) for t in roleTerms))
+        if len(self._roles) == 0:
+            raise ValueError("The game description does not define any role")
         self._playerList = [Constant(r) for r in self._roles]
         self._knowers = [i for i, r in enumerate(self._roles) if r != 0]
         self._steps = 0

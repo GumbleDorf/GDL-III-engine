@@ -1,25 +1,15 @@
 import os
-import sys
 import random
 from itertools import product
 
 import pytest
 from problog.logic import Term, Constant, Var
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, ROOT)
-
-from GDLIIIEngine import GDLIIIEngine
-from internal.GDLIIIParser import File_Format
+from gdl_problog import GDLIIIEngine, File_Format, EXAMPLES_DIR
 
 
-@pytest.fixture(autouse=True)
-def project_root(monkeypatch):
-    monkeypatch.chdir(ROOT)
-
-
-def load(name, fmt=File_Format.PREFIX):
-    return GDLIIIEngine(f'./examples/{name}.gdliii', fmt)
+def load(name, fmt=File_Format.PREFIX, seed=0):
+    return GDLIIIEngine(os.path.join(EXAMPLES_DIR, f'{name}.gdliii'), fmt, seed=seed)
 
 
 def play_muddy(example, pattern):
@@ -218,3 +208,60 @@ def test_birthday_only_july_16_is_solved(month, day):
         advance(mod, bernard='sayKnown')
         # Albert cannot tell 15 from 17 in August
         assert mod.get_legal_moves('albert') == []
+
+
+def write_game(tmp_path, text):
+    p = tmp_path / 'game.gdliii'
+    p.write_text(text)
+    return str(p)
+
+
+def test_missing_file_rejected():
+    with pytest.raises(FileNotFoundError):
+        GDLIIIEngine('does_not_exist.gdliii', File_Format.PREFIX)
+
+
+@pytest.mark.parametrize('text', ['(role a) (<= (legal a x) (true', '(role a)) (init p)', '(role a) (<= (legal a x) (true p)'])
+def test_unmatched_parentheses_rejected(tmp_path, text):
+    with pytest.raises(ValueError, match='parentheses'):
+        GDLIIIEngine(write_game(tmp_path, text), File_Format.PREFIX)
+
+
+def test_no_roles_rejected(tmp_path):
+    with pytest.raises(ValueError, match='role'):
+        GDLIIIEngine(write_game(tmp_path, '(init p) (<= terminal (true p))'), File_Format.PREFIX)
+
+
+def test_unknown_player_and_random_query_rejected():
+    mod = load('montyhall', File_Format.INFIX)
+    with pytest.raises(Exception):
+        mod.query('nobody', Term('car', Var('_')))
+    with pytest.raises(Exception):
+        mod.query('random', Term('car', Var('_')))
+
+
+def test_update_without_all_moves_rejected():
+    mod = load('muddy3')
+    with pytest.raises(Exception):
+        mod.update_step()
+
+
+def test_seed_makes_random_player_reproducible():
+    def run(seed):
+        mod = load('montyhall', File_Format.INFIX, seed=seed)
+        mod.set_actions({'candidate': mod.get_legal_moves('candidate')[0]})
+        mod.update_step()
+        mod.set_actions({'candidate': mod.get_legal_moves('candidate')[0]})
+        mod.update_step()
+        return sorted((str(t), p) for p, t in mod.query('candidate', Term('car', Var('_'))))
+    assert run(7) == run(7)
+
+
+def test_cannot_step_past_terminal():
+    mod = load('montyhall', File_Format.INFIX)
+    for i in range(3):
+        mod.set_actions({'candidate': mod.get_legal_moves('candidate')[0]})
+        mod.update_step()
+    assert mod.is_terminal()
+    with pytest.raises(Exception):
+        mod.update_step()
