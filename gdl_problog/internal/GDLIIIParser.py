@@ -13,6 +13,11 @@ _DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'data
 
 GDL_KEYWORDS = frozenset(['ptrue', 'legal', 'does', 'terminal', 'knows', 'sees', 'goal', 'init', 'next', 'role'])
 
+#str that renders as a quoted problog atom while still comparing equal to the plain name
+class _QuotedAtom(str):
+    def __str__(self):
+        return "'" + str.__str__(self) + "'"
+
 #Base class of all gdl objects
 class GDLMetaObject(object):
     def __init__(self, pred, *args):
@@ -198,6 +203,7 @@ class GDLProgram(object):
             for (original, replacement) in {**self.player_map, **replacement_map}.items():
                 statement.replace(original,replacement)
             var_num = self._translate_variables(statement, var_num, var_map)
+            self._quote_atoms(statement)
         self._plain_len = len(self._lines)
         indep_terms = set()
         while (any([self._add_independent_term(line, indep_terms) for line in self._lines])):
@@ -254,6 +260,15 @@ class GDLProgram(object):
             raise Exception("Unexpected type provided to _is_independent_term, expected GDLTerm, GDLAnd or GDLOr")
 
     
+    #GDL variables are ?x, so a capitalised name is an atom, but problog would read it as a variable
+    def _quote_atoms(self, gdl: GDLMetaObject) -> None:
+        if type(gdl.pred) == str and gdl.pred[:1].isupper() and not re.fullmatch(r"Var\d+", gdl.pred):
+            gdl.pred = _QuotedAtom(gdl.pred)
+        if isinstance(gdl.pred, GDLMetaObject):
+            self._quote_atoms(gdl.pred)
+        for a in gdl.args:
+            self._quote_atoms(a)
+
     def _translate_variables(self, gdl: GDLMetaObject, next_var_num: int, var_map: dict) -> int:
         for i in range(len(gdl)):
             if len(gdl[i]) > 0:
@@ -289,7 +304,7 @@ class GDLIIIParser(object):
             File_Format.PREFIX: lambda a: self._process_program_prefix(a)
         }[file_format]
         with open(program_file) as f:
-            program = "".join(l for l in f if not l.lstrip().startswith(";")).replace("\n","")
+            program = "".join(l.split(";", 1)[0] + "\n" for l in f).replace("\n","")
         depth = 0
         for c in program:
             depth += (c == "(") - (c == ")")
