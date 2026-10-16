@@ -8,6 +8,9 @@ from internal.utility import NestedView
 import re
 
 
+import os
+_DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'data')
+
 GDL_KEYWORDS = frozenset(['ptrue', 'legal', 'does', 'terminal', 'knows', 'sees', 'goal', 'init', 'next', 'role'])
 
 #Base class of all gdl objects
@@ -49,8 +52,7 @@ class GDLMetaObject(object):
     def __eq__(self, other):
         if issubclass(type(other), GDLMetaObject) or type(other) == str:
             return str(self) == str(other)
-        else:
-            raise Exception("Cannot compare with type {}".format(type(other)))
+        return NotImplemented
     def __hash__(self):
         return hash(str(self))
     def generate_thinks(self, excluded_predicates = set()) -> None:
@@ -82,7 +84,7 @@ class GDLTerm(GDLMetaObject):
         super().__init__(pred,*args)
     def __str__(self):
         if len(self) == 2 and self.pred == "distinct":
-            return str(self[0]) + " \= " + str(self[1])
+            return str(self[0]) + " \\= " + str(self[1])
         elif len(self) > 0:
             return str(self.pred) + "(" + ",".join(map(str,self.args)) + ")"
         else:
@@ -196,6 +198,7 @@ class GDLProgram(object):
             for (original, replacement) in {**self.player_map, **replacement_map}.items():
                 statement.replace(original,replacement)
             var_num = self._translate_variables(statement, var_num, var_map)
+        self._plain_len = len(self._lines)
         indep_terms = set()
         while (any([self._add_independent_term(line, indep_terms) for line in self._lines])):
             pass
@@ -206,6 +209,22 @@ class GDLProgram(object):
                     new_lines.append(new_rule)
         self._lines.extend(new_lines)
         self._converted = True
+
+    #Returns the objective GDL rules (without the generated thinks rules) as problog text
+    def as_plain_problog(self) -> str:
+        return ".\n".join(map(str, self._lines[:self._plain_len])) + "."
+
+    #(arity, argument) of every knows/1 and knows/2 occurring in the objective rules, argument as problog text
+    def knows_arguments(self) -> list:
+        found = []
+        def walk(obj):
+            if type(obj) == GDLTerm and str(obj.pred) == "knows" and len(obj) in (1, 2):
+                found.append((len(obj), str(obj[len(obj) - 1])))
+            for a in obj.args:
+                walk(a)
+        for line in self._lines[:self._plain_len]:
+            walk(line)
+        return list(dict.fromkeys(found))
 
 
     #Excluded list is made from non-game defined single predicated (e.g. psucc in guess.gdliii), and rule that has only terms of this nature on rhs is not to be duplicated
@@ -260,7 +279,7 @@ class GDLIIIParser(object):
         #TODO: Grab the full list of problog builtins and populate this with them
         #If we are trying to define a predicate that is the same as a builtin, prepend a p
         self._existing_builtins = {}
-        for line in open('./data/problog_builtins.txt'):
+        for line in open(os.path.join(_DATA_DIR, 'problog_builtins.txt')):
             self._existing_builtins[line.rstrip()] = f"p{line.rstrip()}"
 
     def output_model(self, program_file: str, file_format: File_Format) -> GDLProgram:
@@ -301,7 +320,7 @@ class GDLIIIParser(object):
 
     def _process_line_infix(self, gdl: str) -> GDLMetaObject:
         gdl = gdl.strip()
-        if gdl.startswith("not"):
+        if gdl.startswith("not") and (len(gdl) == 3 or not (gdl[3].isalnum() or gdl[3] == "_")):
             gdl = gdl.replace("not ", "not(", 1)
             gdl = gdl + ")"
         if ("<=" not in gdl and "(" not in gdl):
@@ -414,7 +433,7 @@ class GDLIIIParser(object):
 
     #Return a list of predefined predicates that are required for the model to run
     def _populate_predefined_preds(self):
-        return [line.strip() for line in open('./data/predicates.problog')]
+        return [line.strip() for line in open(os.path.join(_DATA_DIR, 'predicates.problog'))]
 
 
 

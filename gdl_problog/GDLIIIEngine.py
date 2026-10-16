@@ -22,24 +22,20 @@ class GDLIIIEngine(object):
             raise Exception("{} is an undefined role".format(player))
         if player == 'random':
             raise Exception("Random player does not track knowledge state")
-        return sorted([(prob,pred.args[1]) for (pred, prob) in self._gdl_rep.query(Constant(self._player_map[player]), query, step).items()], \
+        return sorted([(prob, pred) for (pred, prob) in self._gdl_rep.query(Constant(self._player_map[player]), query, step).items()], \
             key=lambda a: a[0], reverse=True)
     # Get moves for every player, or alternatively, specify a player and only recieve current legal moves for them
     def get_legal_moves(self, player=None):
         if player is None:
-            action_dict = {}
-            for i in self.player_names:
-                action_dict[i] = sorted([i.args[1] for i in self._gdl_rep.getLegalMovesForPlayer(self._player_map[i]).keys()], key=lambda a: str(a))
-            return action_dict
-        else:
-            return sorted([i.args[1] for i in self._gdl_rep.getLegalMovesForPlayer(self._player_map[player]).keys()], key=lambda a: str(a))
+            return {i: self.get_legal_moves(i) for i in self.player_names}
+        return sorted(self._gdl_rep.getLegalMovesForPlayer(self._player_map[player]), key=lambda a: str(a))
     # Pass in a dict of actions for each player
     # Alternatively, pass in a dict containing only a subset of player actions
     def set_actions(self, moves):
         for (player, action) in moves.items():
             if player not in self.player_names:
                 raise Exception("{} is an undefined role".format(player))
-            self._gdl_rep.submitAction(Term('legal', Constant(self._player_map[player]), action), self._player_map[player])
+            self._gdl_rep.submitAction(action, Constant(self._player_map[player]))
     # Undo all actions and go back a step
     # Optionally, set increment to a value greater than 1 to undo multiple steps
     def undo_step(self, increment=1):
@@ -48,13 +44,15 @@ class GDLIIIEngine(object):
         if type(increment) != int or increment < 1 or increment > self._cur_step:
             raise Exception("Expected increment to be an integer >= 1")
         self._gdl_rep.undo(increment)
+        self._cur_step -= increment
     # Process the actions in the queue and move to the next step
     # Can only be called if every player has a valid move
     def update_step(self):
         if self.is_terminal():
             raise Exception("Cannot continue to next step, current state is terminal")
-        if self._gdl_rep.getMoveList()[self._gdl_rep._randomIdentifier] is None:
-            self._gdl_rep.submitAction(choice(tuple(self._gdl_rep.getLegalMovesForPlayer(self._gdl_rep._randomIdentifier))), self._gdl_rep._randomIdentifier)
+        random_id = self._gdl_rep._randomIdentifier
+        if random_id in self._gdl_rep.getMoveList() and self._gdl_rep.getMoveList()[random_id] is None:
+            self._gdl_rep.submitAction(choice(tuple(self._gdl_rep.getLegalMovesForPlayer(random_id))), random_id)
         self._gdl_rep.applyActionsToModelAndUpdate()
         self._cur_step +=1
 

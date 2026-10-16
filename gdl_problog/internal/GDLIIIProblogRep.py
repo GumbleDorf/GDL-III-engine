@@ -1,233 +1,279 @@
-from problog.program import PrologFile, PrologString,LogicProgram
-from problog.engine import DefaultEngine, ClauseDB
-from problog.logic import Term, Constant,Var, Clause
-from problog import get_evaluatable
-from random import choice
+from collections import defaultdict
 from itertools import product
-from copy import deepcopy
-from internal.world import World
-from internal.randomWorld import RandomWorld
+from problog.program import PrologString
+from problog.engine import DefaultEngine, UnknownClause
+from problog.logic import Term, Constant, Var
 from internal.GDLIIIParser import GDLIIIParser, File_Format
 
-NO_SEEN_TOKENS_KEY = '-2'
+#Marker used to declare predicates that may have no clauses in a game description. Anything derived from it is discarded.
+DUMMY = "epi_dummy"
+PREAMBLE = (f"ptrue({DUMMY}). does({DUMMY},{DUMMY}). knows({DUMMY},{DUMMY}). knows({DUMMY}). epi_cand({DUMMY}).\n"
+            f"next({DUMMY}). sees({DUMMY},{DUMMY}). epi_out({DUMMY}).\n"
+            "epi_out(next(F)) :- next(F).\nepi_out(sees(R,P)) :- sees(R,P).\n")
+MAX_KNOWLEDGE_ITERATIONS = 50
 
-class GameData(object):
-    def __init__(self, players, random_id):
-        self.players = players
-        self.random_id = random_id
 
-class GDLNode(object):
-    def __init__(self, worlds: dict, game_data: GameData, parent = None):
+class Seq(object):
+    """A legal play sequence (Definition 3 of Thielscher & Schiffel, IJCAI-17) together with the state and knowledge it results in."""
+    __slots__ = ("parent", "state", "hist", "moves", "factors", "knows", "db", "legal", "terminal",
+                 "layer", "children", "succ", "cand", "held")
+
+    def __init__(self, parent, state, hist, moves, factors):
         self.parent = parent
-        self.worlds = worlds
-        self.game_data = game_data
-        self.successors = {}
-        self.legal_moves = self._generate_legal_moves()
-
-    def _hash_actions(self, actions):
-        return "".join(sorted(list(map(str,actions.items()))))
-
-    def get_next_node(self, actions):
-        key = self._hash_actions(actions)
-        if key not in self.successors.keys():
-            self.successors[key] = self._generate_successor_worlds(actions)
-        return self.successors[key]
-
-    def set_next_node(self,node, actions):
-        key = self._hash_actions(actions)
-        self.successors[key] = node
-
-    def raw_query(self, player, query, worlds=None):
-        if worlds is None:
-            worlds = self.worlds
-        initialResults = []
-        #Assumption: Sum of all probabilities of worlds == 1
-        for world in worlds[player]:
-            initialResults.append(world.query([query]))
-        keys = set([i for d in initialResults for i in d.keys()])
-        queryResults = {}
-        for k in keys:
-            queryResults[k] = 0
-            for d in initialResults:
-                if k in d.keys():
-                    queryResults[k] += d[k]
-        return queryResults
-
-    def get_legal_moves(self):
-        return self.legal_moves
-
-    def _generate_legal_moves(self):
-        legalMoves = {}
-        for player in self.worlds.keys():
-            legalMoves[player] = {}
-            for world in self.worlds[player]:
-                legalMoves[player] = world.query([Term('legal', player, Var('_'))])
-                break
-        return legalMoves
-
-    #Returns worlds with only information relevant to the player
-    def generate_speculative_worlds(self, player, actions):
-        knowsSet = set()
-        total_new_worlds = {}
-        newWorlds = set()
-        for world in self.worlds[player]:
-            (wd, truekey) = world.getSuccessorWorlds(actions)
-            newWorlds = newWorlds.union(wd[truekey])
-        total_new_worlds[player] = self._normaliseProbability(newWorlds)
-        #Find knowledge that is known across every state, this will derive the knows predicate
-        res = [k for (k,v) in self.raw_query(player, Term('thinks', player, Var('_')), total_new_worlds).items() if v == 1]
-        for p in res:
-            t = Term('knows', p.args[0], p.args[1])
-            knowsSet.add(t)
-            knowsSet.add(Term('thinks', player, t))
-        for w in total_new_worlds[player]:
-            for p in knowsSet:
-                w._preds.add(p)
-                w._kb += p
-        return GDLNode(total_new_worlds, self.game_data, self)
-
-    def _generate_successor_worlds(self, actions):
-        total_new_worlds = {}
-        players_less_random = [_ for _ in self.game_data.players if _ != self.game_data.random_id]
-        all_worlds = {}
-        knowsSet = set()
-        for i in players_less_random:
-            all_worlds[i] = {}
-            newWorlds = set()
-            truekey = None
-            for world in self.worlds[i]:
-                (wd,truekey) = world.getSuccessorWorlds(actions)
-                try:
-                    newWorlds = newWorlds.union(wd[truekey])
-                except:
-                    pass
-                for m in wd.keys():
-                    if m not in all_worlds[i].keys():
-                        all_worlds[i][m] = set()
-                    all_worlds[i][m] = all_worlds[i][m].union(wd[m])
-            total_new_worlds[i] = self._normaliseProbability(newWorlds)
-            #Find knowledge that is known across every state, this will derive the knows predicate
-            res = [k for (k,v) in self.raw_query(i, Term('thinks', i, Var('_')), total_new_worlds).items() if v == 1 and k.args[1].functor != "legal"]
-            for p in res:
-                t = Term('knows', p.args[0], p.args[1])
-                knowsSet.add(t)
-            for w in total_new_worlds[i]:
-                for p in knowsSet:
-                    w._preds.add(Term('thinks', i, p))
-                    w._kb += Term('thinks', i, p)
-        
-        for i in players_less_random:
-            for w in total_new_worlds[i]:
-                for p in knowsSet:
-                    w._preds.add(p)
-                    w._kb += p
-
-        for i in players_less_random:
-            #Get knowledge in every other state
-            for m in all_worlds[i].keys():
-                if m != truekey:
-                    knows = self.get_knows_for_worlds(all_worlds[i][m])
-                    for p in knows:
-                        for wm in all_worlds[i][m]:
-                            wm._preds.add(Term('knows', i,p))
+        self.state = state
+        #Per role: the moves and percepts of that role so far, two sequences are indistinguishable for a role iff these are equal
+        self.hist = hist
+        self.moves = moves
+        #Per role: product of 1/(number of legal moves), the prior probability of the moves taken by the other roles
+        self.factors = factors
+        self.knows = frozenset()
+        self.db = None
+        self.legal = None
+        self.terminal = None
+        self.layer = None
+        self.children = {}
+        #Successor sequences by joint move, only used along the actual play
+        self.succ = {}
+        #Cached evaluation results, valid as long as db is not rebuilt
+        self.cand = None
+        self.held = {}
 
 
-        #Generate Inferred knowledge
-        kvworlds = {}
-        for i in players_less_random:
-            for w in total_new_worlds[i]:
-                kvworlds[w] = [Term('thinks',i,p) for p in self.generate_inferred_knowledge(w,all_worlds)]
-
-        for (w,k) in kvworlds.items():
-            for p in k:
-                w._preds.add(p)
-                w._kb += p
-        knowsSet2 = set()
-        #Generate new legal moves
-        for i in players_less_random:
-            res = [k for (k,v) in self.raw_query(i, Term('thinks', i, Var('_')), total_new_worlds).items() if v == 1 and k.args[1].functor == "legal"]
-            for q in res:
-                knowsSet2.add(Term('knows', i, q.args[1]))
-        for i in players_less_random:
-            for w in total_new_worlds[i]:
-                for p in knowsSet2:
-                    w._preds.add(p)
-                    w._kb += Term(p)
+class Layer(object):
+    """The sequences of one length that are connected to the actual play via indistinguishability relations (closed under them)."""
+    def __init__(self, nodes):
+        self.nodes = nodes
 
 
-        #Extra case, should only be one world in the random players collection
-        if self.game_data.random_id in self.worlds.keys():
-            for w in self.worlds[self.game_data.random_id]:
-                total_new_worlds[self.game_data.random_id] = set(w.getSuccessorWorlds(actions))
-                for w1 in total_new_worlds[self.game_data.random_id]:
-                    for p1 in knowsSet:
-                        w1._preds.add(p1)
-                        w1._kb += p1
-                    for p2 in knowsSet2:
-                        w1._preds.add(p2)
-                        w1._kb += p2
-                break
-        return GDLNode(total_new_worlds, self.game_data, self)
-
-    def _normaliseProbability(self,worlds):
-        totalprob = 0
-        for w in worlds:
-            totalprob += w._prob
-        for w in worlds:
-            w._prob = w._prob / totalprob
-        return worlds
-    
-    def generate_inferred_knowledge(self,world,all_worlds):
-        for i in all_worlds.keys():
-            if i == world._player:
-                continue
-            for j in all_worlds[i].keys():
-                same_token = None
-                for w in all_worlds[i][j]:
-                    if same_token is None and self.state(w) == self.state(world):
-                        same_token = j
-                        preds = set([p for p in w._preds if p.functor == "knows" and p.args[0] == i and p.args[1].functor != "legal"])
-                        return preds
-        return set()
-
-    def state(self, world):
-        ppreds = set()
-        for p in world._preds:
-            if p.functor == "thinks" and p.args[0] == world._player and p.args[1].functor != "knows":
-                ppreds.add(p.args[1])
-        return ppreds
-
-    def get_knows_for_worlds(self, worlds):
-        preds = set()
-        for w in worlds:
-            dis_set = set()
-            for p in w.query([Term('thinks', w._player, Var('_'))],prob_override=1):
-                if p.functor == "thinks":
-                    tp = p.args[1]
-                    if tp.functor != "knows":
-                        dis_set.add(tp)
-            
-            if len(preds) == 0:
-                preds = dis_set
-            else:
-                preds &= dis_set
-        return preds
-
-
-#This is just a preliminary program to solve Monty Hall, not generalised yet.
 class GDLIIIProblogRep(object):
+    """
+    Explicit possible-worlds implementation of GDL-III semantics.
+    Only the sequences that are indistinguishable (transitively, for any player) from the actual play are kept, as
+    knowledge of a sequence only depends on those. The random player does not take part in indistinguishability.
+    """
     def __init__(self, program, fformat):
-        #GlobalEngine
         self._engine = DefaultEngine()
-        gdl_parser = GDLIIIParser()
-        self._model = gdl_parser.output_model(program, fformat)
-        self._baseModelFile = self._model.as_problog()
+        self._model = GDLIIIParser().output_model(program, fformat)
+        self._randomIdentifier = Constant(0)
+        knowsArgs = self._model.knows_arguments()
+        self._common = any(a == 1 for (a, _) in knowsArgs)
+        candidateRules = "".join(f"epi_cand({arg}) :- {arg}.\n" for (_, arg) in dict.fromkeys(knowsArgs))
+        self._base = self._engine.prepare(PrologString(PREAMBLE + self._model.as_plain_problog() + "\n" + candidateRules))
+
         self._playerList = []
-        self._randomIdentifier = Constant(0) #Hardcoded to give the random player a specific constant id as we apply some special rules to the random player
-        worlds = self._initialiseKB()
-        self._cur_node = GDLNode(worlds, GameData(self._playerList, self._randomIdentifier))
-        self._moveList = dict([(i,None) for i in self._playerList])
-        self.terminal = False
+        roleTerms = self._ask(self._base, Term('role', Var('R')))
+        self._roles = sorted(set(self._role_id(t.args[0]) for t in roleTerms))
+        self._playerList = [Constant(r) for r in self._roles]
+        self._knowers = [i for i, r in enumerate(self._roles) if r != 0]
+        self._steps = 0
+
+        root = Seq(None, frozenset(t.args[0] for t in self._ask(self._base, Term('init', Var('F')))),
+                   tuple(() for _ in self._roles), (),
+                   tuple(1.0 for _ in self._roles))
+        self._finalise([root])
+        root.layer = Layer([root])
+        self._cur_node = root
+        self._moveList = dict([(i, None) for i in self._playerList])
+        self.terminal = bool(root.terminal)
+
+    @staticmethod
+    def _role_id(term):
+        return int(str(term))
+
+    #Evaluation of the game rules
+
+    def _ask(self, db, term):
+        try:
+            results = self._engine.query(db, term)
+        except UnknownClause:
+            return []
+        out = []
+        for args in results:
+            t = Term(term.functor, *args)
+            if DUMMY not in str(t):
+                out.append(t)
+        return out
+
+    def _holds(self, db, term):
+        return len(self._ask(db, term)) > 0
+
+    def _facts_db(self, node):
+        db = self._base.extend()
+        for f in node.state:
+            db += Term('ptrue', f)
+        for k in node.knows:
+            db += k
+        return db
+
+    @staticmethod
+    def _normalise(term):
+        if isinstance(term, Var):
+            return term
+        if isinstance(term, Constant):
+            if isinstance(term.value, str) and term.value.lstrip('-').isdigit():
+                return Constant(int(term.value))
+            return term
+        if isinstance(term, Term):
+            return Term(term.functor, *[GDLIIIProblogRep._normalise(a) for a in term.args])
+        return term
+
+    #Knowledge (Definition 3)
+
+    @staticmethod
+    def _classes(nodes, idx):
+        classes = defaultdict(list)
+        for n in nodes:
+            classes[n.hist[idx]].append(n)
+        return classes
+
+    #Sets the knowledge, database, legal move and terminal information of every node of a set of sequences closed under indistinguishability
+    def _finalise(self, nodes):
+        classes = {i: self._classes(nodes, i) for i in self._knowers}
+        common = {}
+        if self._common:
+            parent = {n: n for n in nodes}
+            def find(n):
+                while parent[n] is not n:
+                    parent[n] = parent[parent[n]]
+                    n = parent[n]
+                return n
+            for i in self._knowers:
+                for group in classes[i].values():
+                    for n in group[1:]:
+                        parent[find(n)] = find(group[0])
+            groups = defaultdict(list)
+            for n in nodes:
+                groups[find(n)].append(n)
+            common = {n: groups[find(n)] for n in nodes}
+
+        for n in nodes:
+            n.knows = frozenset()
+            n.db = None
+        for _ in range(MAX_KNOWLEDGE_ITERATIONS):
+            #Only nodes whose knowledge changed need a new database and fresh evaluations
+            for n in nodes:
+                if n.db is None:
+                    n.db = self._facts_db(n)
+                    n.cand = None
+                    n.held = {}
+            def holds(node, p):
+                if p not in node.held:
+                    node.held[p] = self._holds(node.db, p)
+                return node.held[p]
+            newKnows = {}
+            for n in nodes:
+                if n.cand is None:
+                    n.cand = [c.args[0] for c in self._ask(n.db, Term('epi_cand', Var('P')))]
+                known = set()
+                for p in n.cand:
+                    for i in self._knowers:
+                        if all(holds(m, p) for m in classes[i][n.hist[i]]):
+                            known.add(Term('knows', Constant(self._roles[i]), p))
+                    if self._common and all(holds(m, p) for m in common[n]):
+                        known.add(Term('knows', p))
+                newKnows[n] = frozenset(known)
+            changed = False
+            for n in nodes:
+                if newKnows[n] != n.knows:
+                    n.knows = newKnows[n]
+                    n.db = None
+                    changed = True
+            if not changed:
+                break
+        else:
+            raise Exception("Knowledge did not converge, the game description may use knows cyclically")
+
+        for n in nodes:
+            n.terminal = self._holds(n.db, Term('terminal'))
+
+    def _legal(self, node):
+        if node.legal is None:
+            legal = {r: [] for r in self._roles}
+            for t in self._ask(node.db, Term('legal', Var('R'), Var('M'))):
+                r = self._role_id(t.args[0])
+                if r in legal and t.args[1] not in legal[r]:
+                    legal[r].append(t.args[1])
+            for r in legal:
+                legal[r].sort(key=str)
+            node.legal = legal
+        return node.legal
+
+    #Successor sequences
+
+    def _successor(self, node, combo, legal):
+        db = node.db.extend()
+        for r, m in zip(self._roles, combo):
+            db += Term('does', Constant(r), m)
+        state = set()
+        percepts = defaultdict(set)
+        for t in self._ask(db, Term('epi_out', Var('X'))):
+            out = t.args[0]
+            if out.functor == 'next':
+                state.add(out.args[0])
+            else:
+                percepts[self._role_id(out.args[0])].add(out.args[1])
+        state = frozenset(state)
+        hist = tuple(node.hist[i] + ((combo[i], frozenset(percepts[r])),) for i, r in enumerate(self._roles))
+        factors = tuple(node.factors[i] / len(legal[r]) for i, r in enumerate(self._roles))
+        return Seq(node, state, hist, tuple(combo), factors)
+
+    def _cached_successor(self, node, combo):
+        if combo not in node.succ:
+            node.succ[combo] = self._successor(node, combo, self._legal(node))
+        return node.succ[combo]
+
+    #All successors of the given sequences. Moves in forced (role id -> move) are the only moves considered for those roles.
+    def _expand(self, nodes, forced=None):
+        out = []
+        for n in nodes:
+            if n.terminal:
+                continue
+            legal = self._legal(n)
+            options = []
+            for r in self._roles:
+                if forced is not None and r in forced:
+                    options.append([forced[r]] if forced[r] in legal[r] else [])
+                else:
+                    options.append(legal[r])
+            for combo in product(*options):
+                out.append(self._successor(n, combo, legal))
+        return out
+
+    #The set of sequences of the next layer that is indistinguishable (transitively) from start.
+    #Indistinguishable sequences of a role share the move of that role, so only the successors that take one of the moves
+    #already found for some role are generated, which avoids expanding every joint move of every sequence.
+    def _component(self, layer, start):
+        allowed = {i: {start.moves[i]} for i in self._knowers}
+        while True:
+            index = defaultdict(list)
+            for n in layer.nodes:
+                if n.terminal:
+                    continue
+                legal = self._legal(n)
+                for combo in product(*[legal[r] for r in self._roles]):
+                    if any(combo[i] in allowed[i] for i in self._knowers):
+                        c = self._cached_successor(n, combo)
+                        for i in self._knowers:
+                            index[(i, c.hist[i])].append(c)
+            seen = {start}
+            stack = [start]
+            while stack:
+                c = stack.pop()
+                for i in self._knowers:
+                    for d in index[(i, c.hist[i])]:
+                        if d not in seen:
+                            seen.add(d)
+                            stack.append(d)
+            grew = False
+            for c in seen:
+                for i in self._knowers:
+                    if c.moves[i] not in allowed[i]:
+                        allowed[i].add(c.moves[i])
+                        grew = True
+            if not grew:
+                return list(seen)
+
+    #Interface
 
     def getMoveList(self):
         return self._moveList
@@ -235,116 +281,105 @@ class GDLIIIProblogRep(object):
     def undo(self, increment=1):
         for _ in range(increment):
             self._cur_node = self._cur_node.parent
-        self._moveList = dict([(i,None) for i in self._playerList])
-        if self.terminal:
-            self.terminal = False
+        self._steps -= increment
+        self._moveList = dict([(i, None) for i in self._playerList])
+        self.terminal = bool(self._cur_node.terminal)
 
+    #Legal moves of a player (Constant id) in the actual state, as a list of move terms
     def getLegalMovesForPlayer(self, player):
-        return self._cur_node.legal_moves[player]
+        return list(self._legal(self._cur_node)[self._role_id(player)])
 
-    def _resetKnowledgeBase(self):
-        self._kb = self._engine.prepare(self._baseModelFile)
-
-    def getPlayersPossibleWorlds(self, player):
-        return self._cur_node.worlds[player]
-
-
-    #Assumption, term contains a single argument
-    def extractSingleArg(self,nArg, term):
-        return term.args[nArg]
-
-    #Recommended to never call this function with step > 1 as it will likely take a long time, exponential time complexity for values of step > 0.
-    def query(self, player, query, step=0):
-        if step == 0:
-            return self._cur_node.raw_query(player, Term('thinks', player, query))
-        else:
-            world_set = set([self._cur_node])
-            for _ in range(step):
-                #Create set of all possible move sequences from perspective of player
-                action_set = set()
-                for world in world_set:
-                    action_set = action_set.union(set([i for i in world.get_legal_moves()[player].keys()]))
-                legal_moves_seqs = [{k:(None if k != player else a) for k in self._playerList} for a in action_set]
-                #Generate possible (but not always valid) successor worlds
-                new_set = set()
-                for world in world_set:
-                    for actions in legal_moves_seqs:
-                        new_set.add(world.generate_speculative_worlds(player, actions))
-                world_set = new_set
-
-            query_dict = {}
-            size = len(world_set)
-            for w in world_set:
-                for (item,val) in w.raw_query(player, Term('thinks', player, query)).items():
-                    if item in query_dict.keys():
-                        query_dict[item] += val/size
-                    else:
-                        query_dict[item] = val/size
-            return query_dict
-
-    #Private
-    def _initialiseKB(self):
-        self._kb = self._engine.prepare(self._baseModelFile)
-        initialState = \
-            set(map(lambda a: Term('ptrue', a[0].args[0]), self._engine.ground_all(self._kb, queries=[Term('init',Var('_'))]).get_names()))
-        players = \
-            set(map(lambda a: a[0], self._engine.ground_all(self._kb, queries=[Term('role',Var('_'))]).get_names()))
-        #Not needed, but dont care to remove right now
-        self._step = 0
-        playerWorldState = {}
-
-        for playerNum in map(lambda a: a.args[0], players):
-            knowledge = map(lambda a: Term('thinks', playerNum, a.args[0]), initialState)
-            playerPreds = initialState.union(set(knowledge))
-            self._playerList.append(playerNum)
-            #Each player starts with a single initial world
-            if playerNum == self._randomIdentifier:
-                #Random Specific world has no thinks predicates
-                playerWorldState[playerNum] = [RandomWorld(self._engine, self._baseModelFile, self._step, 1, initialState, playerNum)]
-            else:
-                playerWorldState[playerNum] = [World(self._engine, self._baseModelFile, self._step, 1, playerPreds, playerNum)]
-        return playerWorldState
+    def submitAction(self, action, player):
+        if action not in self.getLegalMovesForPlayer(player):
+            raise Exception("{} is not a legal action".format(action))
+        self._moveList[player] = action
 
     def applyActionsToModelAndUpdate(self):
         if (None in self._moveList.values()):
             raise Exception("Error: Must have submitted moves for all players before proceeding")
-        self._cur_node = self._cur_node.get_next_node(self._moveList)
-        #Assume, there is at least one player
-        if len([(k,v) for (k,v) in self._cur_node.raw_query(\
-             self._playerList[0], Term('terminal')).items() if v > 0]) > 0:
-            self.terminal = True
+        node = self._cur_node
+        combo = tuple(self._moveList[Constant(r)] for r in self._roles)
+        if combo not in node.children:
+            layer = node.layer
+            child = self._cached_successor(node, combo)
+            if child.layer is None:
+                members = self._component(layer, child)
+                newLayer = Layer(members)
+                self._finalise(members)
+                for m in members:
+                    m.layer = newLayer
+            node.children[combo] = child
+        self._cur_node = node.children[combo]
+        self._steps += 1
+        self.terminal = bool(self._cur_node.terminal)
+        self._moveList = dict([(i, None) for i in self._playerList])
 
-        self._step += 1
-        self._moveList = dict([(i,None) for i in self._playerList])
+    def _prior(self, node, observer):
+        w = 1.0
+        for i, f in enumerate(node.factors):
+            if i != observer:
+                w *= f
+        return w
 
-    def submitAction(self, action, player):
-        if ( action not in self.getLegalMovesForPlayer(player)):
-            raise Exception("{} is not a legal action".format(action))
-        self._moveList[player] = action
+    #Probability distribution of the instances of query that the player considers possible, conditioned on everything the player has observed.
+    #With step > 0, the distribution is over the state after the player takes every possible sequence of step actions (averaged),
+    #without conditioning on observations that have not been made yet.
+    def query(self, player, query, step=0):
+        query = self._normalise(query)
+        observer = self._roles.index(self._role_id(player))
+        actual = self._cur_node
+        info = [n for n in actual.layer.nodes if n.hist[observer] == actual.hist[observer]]
+        if step == 0:
+            results = [self._answer(info, observer, query)]
+        else:
+            results = [self._answer(final, observer, query) for final in self._speculate(info, actual.layer.nodes, observer, step)]
+        total = defaultdict(float)
+        for r in results:
+            for (k, v) in r.items():
+                total[k] += v / len(results)
+        if len(results) == 0 or (len(total) == 0 and len(query.variables()) == 0):
+            total[query] = 0.0
+        return dict(total)
 
-    
+    #A query matches derived predicates as well as state fluents
+    def _ask_query(self, db, query):
+        found = set(self._ask(db, query))
+        for t in self._ask(db, Term('ptrue', query)):
+            found.add(t.args[0])
+        return found
 
-#Test function to demonstrate playing monty hall with the model
-def playMonty():
-    model = GDLIIIProblogRep('./examples/montyhall.gdliii', File_Format.INFIX)
-    main_loop(model)
+    def _answer(self, nodes, observer, query):
+        weights = [self._prior(n, observer) for n in nodes]
+        norm = sum(weights)
+        out = defaultdict(float)
+        if norm == 0:
+            return out
+        for n, w in zip(nodes, weights):
+            for t in self._ask_query(n.db, query):
+                out[t] += w / norm
+        return out
 
-#Test function to demonstrate playing monty hall with the model
-def playGuessing():
-    model = GDLIIIProblogRep('./examples/guess.gdliii', File_Format.PREFIX)
-    main_loop(model)
-
-def main_loop(model):
-    while(not model.terminal):
-        playerMoves = tuple(model.getLegalMovesForPlayer(Constant(1)))
-        randomMoves = tuple(model.getLegalMovesForPlayer(Constant(0)))
-        model.submitAction(choice(playerMoves), Constant(1))
-        model.submitAction(choice(randomMoves), Constant(0))
-        model.applyActionsToModelAndUpdate()
-        #For Monty Hall
-        #print(model.query(Constant(1), Term('car', Var('_'))))
-        #For guessing game
-        print(model.query(Constant(1), Term('num', Var('_'))))
-if __name__ == "__main__":
-    #playMonty()
-    playGuessing()
+    #Yields the possible info sets (successors of the info set) after the player took each possible sequence of step actions
+    def _speculate(self, info, layer, observer, step):
+        role = self._roles[observer]
+        if step == 0:
+            yield info
+            return
+        infoSet = set(info)
+        actions = []
+        for n in layer:
+            if n in infoSet:
+                for m in self._legal(n)[role]:
+                    if m not in actions:
+                        actions.append(m)
+        for a in actions:
+            successors = self._expand(layer, {role: a})
+            if len(successors) == 0:
+                continue
+            members = set(successors)
+            #Successors are closed under indistinguishability since their prefixes are
+            nodes = list(members)
+            self._finalise(nodes)
+            newInfo = [n for n in nodes if n.parent in infoSet]
+            if len(newInfo) > 0:
+                yield from self._speculate(newInfo, nodes, observer, step - 1)

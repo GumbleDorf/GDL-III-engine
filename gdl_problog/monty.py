@@ -30,10 +30,8 @@ def main():
             mod.set_actions({PLAYER_NAME:mod.get_legal_moves()[PLAYER_NAME][1]})
         mod.update_step()
         # Add a counter to either goal(1,0) if we lost, or goal(1,100) if we won
-        try:
-            res[mod.query(PLAYER_NAME, Term('goal', Constant(mod.player_to_id(PLAYER_NAME)), Var('_')))[0]] += 1
-        except:
-            res[mod.query(PLAYER_NAME, Term('goal', Constant(mod.player_to_id(PLAYER_NAME)), Var('_')))[0]] = 1
+        goal = mod.query(PLAYER_NAME, Term('goal', Constant(mod.player_to_id(PLAYER_NAME)), Var('_')))[0][1]
+        res[str(goal)] = res.get(str(goal), 0) + 1
         # Go back to beginning of game
         for i in range(3):
             mod.undo_step()

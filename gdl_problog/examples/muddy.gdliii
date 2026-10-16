@@ -9,20 +9,22 @@
 
 (<= (legal ?c noop) (role ?c) (distinct ?c random) (true(round 0)))
 (<= (legal random noop) (not (true (round 0))))
-(<= (true(has ann mud)) (does random (muddy 1 ?b)))
-(<= (true(has bob mud)) (does random (muddy ?a 1)))
-
-(<= (next(has ?c mud)) (true(has ?c mud)))
+(<= (next (has ann mud)) (does random (muddy 1 ?b)))
+(<= (next (has bob mud)) (does random (muddy ?a 1)))
+(<= (next (has ?c mud)) (true (has ?c mud)))
 
 (<= (next (round 1)) (true (round 0)))
 (<= (next (round 2)) (true (round 1)))
 (<= (next (round 3)) (true (round 2)))
 
-(<= (sees ?c (dirt ?d)) (true(has ?d mud)) (distinct ?c ?d))
+(<= (sees ann (dirt bob)) (does random (muddy ?a 1)))
+(<= (sees bob (dirt ann)) (does random (muddy 1 ?b)))
 (<= (isMuddy ?c) (true(has ?c mud)))
 (<= (legal ?c (say yes)) (role ?c) (distinct ?c random) (knows ?c (isMuddy ?c)) (not (true (round 0))))
 (<= (legal ?c (say no)) (role ?c) (distinct ?c random) (not(knows ?c (isMuddy ?c))) (not (true (round 0))))
-(<= (sees ?c (said ?d ?x)) (does ?d (say ?x)))
+(<= (sees ?c (said ?d ?x)) (role ?c) (does ?d (say ?x)))
 
-(<= (terminal) (role ?c) (does ?c (say yes)))
+(<= (next done) (does ?c (say yes)))
+(<= (next done) (true done))
+(<= (terminal) (true done))
 (<= (terminal) (true (round 3)))
