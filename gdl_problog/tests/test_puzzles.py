@@ -155,6 +155,20 @@ def test_sumproduct_dialogue_breaks_for_other_pairs():
     assert mod.get_legal_moves('pete') == []
 
 
+@pytest.mark.slow
+def test_sumproduct_classic_range_solution():
+    mod = load('sumproduct100')
+    step(mod, random=Term('choose', Constant(4), Constant(13)))
+    assert len(pairs(mod, 'sam')) == 7
+    assert len(pairs(mod, 'pete')) == 2
+    step(mod)
+    assert pairs(mod, 'pete') == pytest.approx({'secret(4,13)': 1.0})
+    step(mod)
+    assert pairs(mod, 'sam') == pytest.approx({'secret(4,13)': 1.0})
+    step(mod)
+    assert mod.is_terminal()
+
+
 # Kuhn poker
 
 RANK = {'j': 0, 'q': 1, 'k': 2}

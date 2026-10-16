@@ -31,6 +31,7 @@ Examples are in `gdl_problog/examples/` (`.gdliii`, prefix or infix syntax). Lin
 | `threeprisoners` | ann | named prisoner is never pardoned, so the other one rises to 2/3 |
 | `muddy`, `muddy3`, `muddy4` | children | nested knowledge via public announcements |
 | `birthday`, `sumproduct` | two speakers | Cheryl's birthday and Freudenthal's puzzle (solution 1 and 4) |
+| `sumproduct100` | two speakers | classic range 2 to 100 (2,352 worlds, about 17s, solution 4 and 13). Run `pytest -m "not slow"` to skip |
 | `guess` | player | binary search with yes/no percepts |
 | `kuhn` | p1, p2 | imperfect information poker with showdown payoffs |
 | `generals` | ga, gb | nested knowledge `k1`..`k4` grows per delivered message, common knowledge never |
