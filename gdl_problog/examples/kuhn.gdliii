@@ -1,0 +1,69 @@
+; Kuhn poker with cards j, q, k. Each player antes 1 and is dealt one card by random.
+; p1 checks or bets, p2 responds, and if p2 bets after a check p1 may fold or call.
+; Goals encode the net chips won: 50 plus 25 per chip, so 0, 25, 75 or 100.
+; The opponent is modelled as uniformly random over its legal moves when computing beliefs.
+(role p1)
+(role p2)
+(role random)
+
+(player p1) (player p2)
+(card j) (card q) (card k)
+(beats k q) (beats k j) (beats q j)
+(action check) (action bet) (action fold) (action call)
+
+(init (phase deal))
+
+(<= (legal random (deal ?a ?b)) (true (phase deal)) (card ?a) (card ?b) (distinct ?a ?b))
+(<= (legal random noop) (not (true (phase deal))))
+
+(<= (acts p1) (true (phase p1act)))
+(<= (acts p1) (true (phase p1resp)))
+(<= (acts p2) (true (phase p2act)))
+(<= (acts p2) (true (phase p2resp)))
+(<= (legal ?p noop) (player ?p) (not (acts ?p)))
+
+(<= (legal p1 check) (true (phase p1act)))
+(<= (legal p1 bet) (true (phase p1act)))
+(<= (legal p2 check) (true (phase p2act)))
+(<= (legal p2 bet) (true (phase p2act)))
+(<= (legal p2 fold) (true (phase p2resp)))
+(<= (legal p2 call) (true (phase p2resp)))
+(<= (legal p1 fold) (true (phase p1resp)))
+(<= (legal p1 call) (true (phase p1resp)))
+
+(<= (next (phase p1act)) (true (phase deal)))
+(<= (next (phase p2act)) (true (phase p1act)) (does p1 check))
+(<= (next (phase p2resp)) (true (phase p1act)) (does p1 bet))
+(<= (next (phase end)) (true (phase p2act)) (does p2 check))
+(<= (next (phase p1resp)) (true (phase p2act)) (does p2 bet))
+(<= (next (phase end)) (true (phase p2resp)))
+(<= (next (phase end)) (true (phase p1resp)))
+
+(<= (next (hand p1 ?a)) (does random (deal ?a ?b)))
+(<= (next (hand p2 ?b)) (does random (deal ?a ?b)))
+(<= (next (hand ?p ?c)) (true (hand ?p ?c)))
+(<= (next (folded ?p)) (player ?p) (does ?p fold))
+(<= (next (folded ?p)) (true (folded ?p)))
+(<= (next called) (player ?p) (does ?p call))
+(<= (next called) (true called))
+
+(<= (sees p1 (hand ?a)) (does random (deal ?a ?b)))
+(<= (sees p2 (hand ?b)) (does random (deal ?a ?b)))
+(<= (sees ?r (did ?p ?m)) (player ?r) (player ?p) (does ?p ?m) (action ?m))
+(<= (showdown) (player ?p) (does ?p call))
+(<= (showdown) (true (phase p2act)) (does p2 check))
+(<= (sees ?r (shows ?p ?c)) (player ?r) (showdown) (player ?p) (true (hand ?p ?c)))
+
+(<= (terminal) (true (phase end)))
+
+(<= (winner ?p) (player ?p) (player ?q) (distinct ?p ?q) (true (folded ?q)))
+(<= (winner ?p) (player ?p) (player ?q) (distinct ?p ?q) (not (true (folded p1))) (not (true (folded p2))) (true (hand ?p ?a)) (true (hand ?q ?b)) (beats ?a ?b))
+(<= (loser ?p) (player ?p) (not (winner ?p)))
+(<= (goal ?p 100) (winner ?p) (true called))
+(<= (goal ?p 75) (winner ?p) (not (true called)))
+(<= (goal ?p 25) (loser ?p) (not (true called)))
+(<= (goal ?p 0) (loser ?p) (true called))
+(goal random 0)
+
+(<= (unbeatable ?p) (true (hand ?p k)))
+(<= (knowsBest ?p) (player ?p) (knows ?p (unbeatable ?p)))

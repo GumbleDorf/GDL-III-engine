@@ -22,7 +22,20 @@ g.get_legal_moves(); g.set_actions({...}); g.update_step(); g.query('candidate',
 
 `seed` fixes the random player's moves; `g.rng` is the same generator, for callers that need reproducible choices.
 
-Examples are in `gdl_problog/examples/` (`.gdliii`, prefix or infix syntax). Scripts:
+Examples are in `gdl_problog/examples/` (`.gdliii`, prefix or infix syntax). Lines starting with `;` are comments.
+
+| Game | Roles | What it demonstrates |
+|---|---|---|
+| `montyhall` | candidate | 1/3 vs 2/3 posterior |
+| `montyfall` | candidate | host opens at random, a revealed goat gives 1/2 vs 1/2 |
+| `threeprisoners` | ann | named prisoner is never pardoned, so the other one rises to 2/3 |
+| `muddy`, `muddy3`, `muddy4` | children | nested knowledge via public announcements |
+| `birthday`, `sumproduct` | two speakers | Cheryl's birthday and Freudenthal's puzzle (solution 1 and 4) |
+| `guess` | player | binary search with yes/no percepts |
+| `kuhn` | p1, p2 | imperfect information poker with showdown payoffs |
+| `generals` | ga, gb | nested knowledge `k1`..`k4` grows per delivered message, common knowledge never |
+
+Scripts:
 
 ```
 python -m gdl_problog.monty

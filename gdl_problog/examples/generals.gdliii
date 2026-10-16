@@ -1,0 +1,45 @@
+; Coordinated attack with two generals ga and gb. Random first decides whether ga plans to attack.
+; Only ga learns the plan. Then four messages alternate ga to gb, gb to ga, ga to gb, gb to ga.
+; A general only sends message k after receiving message k minus 1, and random delivers or drops every message.
+; k1 to k4 are the nested knowledge levels: k1 is gb knows attack, k2 is ga knows k1, and so on.
+; ck is common knowledge of the plan and is never reached over the unreliable channel.
+(role ga)
+(role gb)
+(role random)
+
+(sender 1 ga) (sender 2 gb) (sender 3 ga) (sender 4 gb)
+(receiver 1 gb) (receiver 2 ga) (receiver 3 gb) (receiver 4 ga)
+(pred 1 0) (pred 2 1) (pred 3 2) (pred 4 3)
+(succ 0 1) (succ 1 2) (succ 2 3) (succ 3 4) (succ 4 5)
+
+(init (round 0))
+(init (recv 0))
+
+(<= (legal random (decide ?p)) (true (round 0)) (planOption ?p))
+(planOption attack) (planOption hold)
+(<= (legal random deliver) (not (true (round 0))))
+(<= (legal random drop) (not (true (round 0))))
+(<= (legal ?g noop) (role ?g) (distinct ?g random) (true (round 0)))
+
+(<= (canSend ?s) (true (round ?k)) (sender ?k ?s) (pred ?k ?j) (true (recv ?j)))
+(<= (legal ?s send) (canSend ?s))
+(<= (legal ?g noop) (role ?g) (distinct ?g random) (not (true (round 0))) (not (canSend ?g)))
+
+(<= (next (plan ?p)) (does random (decide ?p)))
+(<= (next (plan ?p)) (true (plan ?p)))
+(<= (next (round ?n)) (true (round ?m)) (succ ?m ?n))
+(<= (next (recv ?k)) (true (round ?k)) (sender ?k ?s) (does ?s send) (does random deliver))
+(<= (next (recv ?k)) (true (recv ?k)))
+
+(<= (sees ga (plan ?p)) (does random (decide ?p)))
+(<= (sees ?r (msg ?k ?p)) (true (round ?k)) (sender ?k ?s) (receiver ?k ?r) (does ?s send) (does random deliver) (true (plan ?p)))
+
+(<= attack (true (plan attack)))
+(<= (k1) (knows gb attack))
+(<= (k2) (knows ga k1))
+(<= (k3) (knows gb k2))
+(<= (k4) (knows ga k3))
+(<= (ck) (knows attack))
+
+(<= (terminal) (true (round 5)))
+(goal ga 100) (goal gb 100) (goal random 0)

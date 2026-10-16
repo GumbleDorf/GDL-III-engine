@@ -14,12 +14,19 @@ GAMES = {
     'muddy4': (File_Format.PREFIX, lambda m: m.query(m.player_names[0], Term('isMuddy', Var('_')))),
     'guess': (File_Format.PREFIX, lambda m: m.query('player', Term('secret', Var('_')))),
     'montyhall': (File_Format.INFIX, lambda m: m.query('candidate', Term('car', Var('_')))),
+    'threeprisoners': (File_Format.PREFIX, lambda m: m.query('ann', Term('pardoned', Var('_')))),
+    'montyfall': (File_Format.PREFIX, lambda m: m.query('candidate', Term('car', Var('_')))),
+    'sumproduct': (File_Format.PREFIX, lambda m: m.query('sam', Term('secret', Var('X'), Var('Y')))),
+    'kuhn': (File_Format.PREFIX, lambda m: m.query('p1', Term('hand', Var('P'), Var('C')))),
+    'generals': (File_Format.PREFIX, lambda m: m.query('ga', Term('k4'))),
 }
 
 
 def play_first_moves(mod):
     steps = 0
     while not mod.is_terminal():
+        if any(len(mod.get_legal_moves(p)) == 0 for p in mod.player_names):
+            break
         mod.set_actions({p: mod.get_legal_moves(p)[0] for p in mod.player_names})
         mod.update_step()
         steps += 1

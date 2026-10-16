@@ -289,7 +289,7 @@ class GDLIIIParser(object):
             File_Format.PREFIX: lambda a: self._process_program_prefix(a)
         }[file_format]
         with open(program_file) as f:
-            program = "".join(f.readlines()).replace("\n","")
+            program = "".join(l for l in f if not l.lstrip().startswith(";")).replace("\n","")
         depth = 0
         for c in program:
             depth += (c == "(") - (c == ")")

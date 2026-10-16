@@ -1,0 +1,27 @@
+; Three Prisoners paradox. One of pa, pb, pc is pardoned uniformly at random.
+; ann is prisoner pa. The warden (random) names a prisoner other than ann who is not pardoned.
+; Ann learns nothing about her own fate (stays at 1/3), but the other unnamed prisoner rises to 2/3.
+; Comments must not contain brackets as the parser reads everything inside brackets.
+(role ann)
+(role random)
+
+(prisoner pa) (prisoner pb) (prisoner pc)
+(init (step 0))
+
+(<= (legal random (pardon ?p)) (true (step 0)) (prisoner ?p))
+(<= (legal ann noop) (true (step 0)))
+
+(<= (legal random (name ?p)) (true (step 1)) (prisoner ?p) (distinct ?p pa) (not (true (pardoned ?p))))
+(<= (legal ann noop) (true (step 1)))
+
+(<= (next (pardoned ?p)) (does random (pardon ?p)))
+(<= (next (pardoned ?p)) (true (pardoned ?p)))
+(<= (next (step 1)) (true (step 0)))
+(<= (next (step 2)) (true (step 1)))
+
+(<= (sees ann (named ?p)) (does random (name ?p)))
+
+(<= (terminal) (true (step 2)))
+(<= (goal ann 100) (true (pardoned pa)))
+(<= (goal ann 0) (not (true (pardoned pa))))
+(goal random 0)

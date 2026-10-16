@@ -1,0 +1,50 @@
+; Sum and Product (Freudenthal). Two numbers x <= y from 1 to 10 are chosen. Sam is told the sum, Pete the product.
+; 1. Sam: I do not know the numbers but I know that you do not know them either.
+; 2. Pete: Now I know the numbers.
+; 3. Sam: Now I know them too.
+; The dialogue is only possible for the pair 1 and 4.
+(role sam)
+(role pete)
+(role random)
+
+(pair 1 1 2 1) (pair 1 2 3 2) (pair 1 3 4 3) (pair 1 4 5 4) (pair 1 5 6 5) (pair 1 6 7 6) (pair 1 7 8 7) (pair 1 8 9 8) (pair 1 9 10 9) (pair 1 10 11 10)
+(pair 2 2 4 4) (pair 2 3 5 6) (pair 2 4 6 8) (pair 2 5 7 10) (pair 2 6 8 12) (pair 2 7 9 14) (pair 2 8 10 16) (pair 2 9 11 18) (pair 2 10 12 20)
+(pair 3 3 6 9) (pair 3 4 7 12) (pair 3 5 8 15) (pair 3 6 9 18) (pair 3 7 10 21) (pair 3 8 11 24) (pair 3 9 12 27) (pair 3 10 13 30)
+(pair 4 4 8 16) (pair 4 5 9 20) (pair 4 6 10 24) (pair 4 7 11 28) (pair 4 8 12 32) (pair 4 9 13 36) (pair 4 10 14 40)
+(pair 5 5 10 25) (pair 5 6 11 30) (pair 5 7 12 35) (pair 5 8 13 40) (pair 5 9 14 45) (pair 5 10 15 50)
+(pair 6 6 12 36) (pair 6 7 13 42) (pair 6 8 14 48) (pair 6 9 15 54) (pair 6 10 16 60)
+(pair 7 7 14 49) (pair 7 8 15 56) (pair 7 9 16 63) (pair 7 10 17 70)
+(pair 8 8 16 64) (pair 8 9 17 72) (pair 8 10 18 80)
+(pair 9 9 18 81) (pair 9 10 19 90)
+(pair 10 10 20 100)
+
+(init (step 0))
+(<= (next (step 1)) (true (step 0)))
+(<= (next (step 2)) (true (step 1)))
+(<= (next (step 3)) (true (step 2)))
+(<= (next (step 4)) (true (step 3)))
+
+(<= (legal random (choose ?x ?y)) (true (step 0)) (pair ?x ?y ?s ?p))
+(<= (legal random noop) (not (true (step 0))))
+(<= (legal sam noop) (or (true (step 0)) (true (step 2))))
+(<= (legal pete noop) (or (true (step 0)) (true (step 1)) (true (step 3))))
+
+(<= (sees sam (sum ?s)) (does random (choose ?x ?y)) (pair ?x ?y ?s ?p))
+(<= (sees pete (product ?p)) (does random (choose ?x ?y)) (pair ?x ?y ?s ?p))
+
+(<= (next (secret ?x ?y)) (does random (choose ?x ?y)))
+(<= (next (secret ?x ?y)) (true (secret ?x ?y)))
+
+(<= (answer ?x ?y) (true (secret ?x ?y)))
+(<= (knowsNums ?r) (knows ?r (answer ?x ?y)))
+(<= (notKnowsNums ?r) (not (knowsNums ?r)))
+
+(<= (legal sam sayIKnowYouDontKnow) (true (step 1)) (not (knowsNums sam)) (knows sam (notKnowsNums pete)))
+(<= (legal pete sayNowIKnow) (true (step 2)) (knowsNums pete))
+(<= (legal sam sayNowIKnow) (true (step 3)) (knowsNums sam))
+
+(announcement sayIKnowYouDontKnow) (announcement sayNowIKnow)
+(<= (sees ?r (said ?s ?m)) (role ?r) (distinct ?r random) (does ?s ?m) (announcement ?m))
+
+(<= (terminal) (true (step 4)))
+(goal sam 100) (goal pete 100) (goal random 0)

@@ -216,6 +216,13 @@ def write_game(tmp_path, text):
     return str(p)
 
 
+def test_comment_lines_may_contain_brackets(tmp_path):
+    path = tmp_path / 'game.gdliii'
+    path.write_text('; a comment (with brackets) and a 0.\n(role a) (role random)\n(init p)\n(<= (legal a go) (true p))\n(<= (legal random noop) (true p))\n(<= terminal (does a go))\n')
+    mod = GDLIIIEngine(str(path), File_Format.PREFIX)
+    assert sorted(mod.player_names) == ['a', 'random']
+
+
 def test_missing_file_rejected():
     with pytest.raises(FileNotFoundError):
         GDLIIIEngine('does_not_exist.gdliii', File_Format.PREFIX)
