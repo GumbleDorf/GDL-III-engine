@@ -1,4 +1,4 @@
-# GDL-III (Thielscher, IJCAI-17) on ProbLog
+# GDL-III on ProbLog
 
 Implementation of GDL-III epistemic game descriptions. Game rules are evaluated with ProbLog and knowledge (`knows/1,2`) is computed over explicit possible play sequences.
 
