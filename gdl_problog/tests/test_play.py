@@ -67,6 +67,6 @@ def test_interactive_rejects_illegal_move_text():
 
 
 def test_interactive_can_choose_random_role_moves():
-    out = run(['threeprisoners', '--choose-random'], ['pardon(pb)'])
+    out = run(['threeprisoners', '--choose-random'], ['pardon(pb)', ''])
     assert 'random=pardon(pb)' in out
     assert 'Terminal after 2 steps' in out
